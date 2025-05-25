@@ -1,0 +1,28 @@
+{
+  "name": "closetgpt",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "seed:wardrobe": "cd frontend && npx ts-node src/scripts/seedWardrobe.ts"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.7",
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@radix-ui/react-label": "^2.1.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "next-themes": "^0.4.6",
+    "tailwind-merge": "^3.3.0"
+  }
+}
