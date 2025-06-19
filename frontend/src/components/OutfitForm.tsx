@@ -4,26 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Trash } from "lucide-react";
 import Image from "next/image";
-
-interface ClothingItem {
-  id: string;
-  name: string;
-  type: string;
-  color: string;
-  season: string[];
-  imageUrl: string;
-  tags?: string[];
-}
-
-interface Outfit {
-  id: string;
-  name: string;
-  occasion: string;
-  weather: string;
-  items: ClothingItem[];
-  explanation: string;
-  saved: boolean;
-}
+import { ClothingItem, Outfit } from "@shared/types";
 
 interface OutfitFormProps {
   outfitId: string;
@@ -48,7 +29,51 @@ const WEATHER_TYPES = [
 
 export default function OutfitForm({ outfitId }: OutfitFormProps) {
   const router = useRouter();
-  const [outfit, setOutfit] = useState<Outfit | null>(null);
+  const [outfit, setOutfit] = useState<Outfit>({
+    id: "",
+    name: "",
+    description: "",
+    items: [
+      {
+        id: "1",
+        name: "Blue T-Shirt",
+        type: "shirt",
+        color: "blue",
+        season: ["spring", "summer"],
+        imageUrl: "/placeholder.jpg",
+        tags: ["casual"],
+        style: ["casual"],
+        userId: "user1",
+        dominantColors: [],
+        matchingColors: [],
+        occasion: ["casual"],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "2",
+        name: "Black Jeans",
+        type: "pants",
+        color: "black",
+        season: ["spring", "summer", "fall"],
+        imageUrl: "/placeholder.jpg",
+        tags: ["casual"],
+        style: ["casual"],
+        userId: "user1",
+        dominantColors: [],
+        matchingColors: [],
+        occasion: ["casual"],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }
+    ],
+    occasion: "casual",
+    season: "spring",
+    style: "casual",
+    styleTags: ["casual"],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -59,28 +84,47 @@ export default function OutfitForm({ outfitId }: OutfitFormProps) {
         const data: Outfit = {
           id: outfitId,
           name: "Casual Summer Day",
-          occasion: "Casual",
-          weather: "sunny",
+          description: "A classic casual combination perfect for a sunny day. The white t-shirt keeps you cool while the blue jeans provide a timeless look.",
           items: [
             {
               id: "1",
               name: "White T-Shirt",
-              type: "Top",
-              color: "White",
-              season: ["Spring", "Summer"],
+              type: "shirt",
+              color: "white",
+              season: ["spring", "summer"],
               imageUrl: "/placeholder.jpg",
+              tags: ["casual"],
+              style: ["casual"],
+              userId: "user1",
+              dominantColors: [],
+              matchingColors: [],
+              occasion: ["casual"],
+              createdAt: Date.now(),
+              updatedAt: Date.now()
             },
             {
               id: "2",
               name: "Blue Jeans",
-              type: "Bottom",
-              color: "Blue",
-              season: ["Spring", "Summer", "Fall"],
+              type: "pants",
+              color: "blue",
+              season: ["spring", "summer", "fall"],
               imageUrl: "/placeholder.jpg",
-            },
+              tags: ["casual"],
+              style: ["casual"],
+              userId: "user1",
+              dominantColors: [],
+              matchingColors: [],
+              occasion: ["casual"],
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            }
           ],
-          explanation: "A classic casual combination perfect for a sunny day. The white t-shirt keeps you cool while the blue jeans provide a timeless look.",
-          saved: false,
+          occasion: "casual",
+          season: "spring",
+          style: "casual",
+          styleTags: ["casual"],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         };
 
         setOutfit(data);

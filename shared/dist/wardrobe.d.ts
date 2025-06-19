@@ -1,0 +1,15 @@
+import { z } from 'zod';
+import { ClothingItemSchema, OutfitSchema, OutfitGeneratedOutfitSchema, OpenAIClothingAnalysisSchema, ColorSchema, VisualAttributesSchema, ItemMetadataSchema, BasicMetadataSchema, ColorAnalysisSchema, MetadataSchema, SeasonEnum, StyleTagEnum, ClothingTypeEnum } from './schemas';
+export type ClothingItem = z.infer<typeof ClothingItemSchema>;
+export type Outfit = z.infer<typeof OutfitSchema>;
+export type OutfitGeneratedOutfit = z.infer<typeof OutfitGeneratedOutfitSchema>;
+export type OpenAIClothingAnalysis = z.infer<typeof OpenAIClothingAnalysisSchema>;
+export type Color = z.infer<typeof ColorSchema>;
+export type VisualAttributes = z.infer<typeof VisualAttributesSchema>;
+export type ItemMetadata = z.infer<typeof ItemMetadataSchema>;
+export type BasicMetadata = z.infer<typeof BasicMetadataSchema>;
+export type ColorAnalysis = z.infer<typeof ColorAnalysisSchema>;
+export type Metadata = z.infer<typeof MetadataSchema>;
+export { ClothingItemSchema, OutfitSchema, OutfitGeneratedOutfitSchema, OpenAIClothingAnalysisSchema, ColorSchema, VisualAttributesSchema, ItemMetadataSchema, BasicMetadataSchema, ColorAnalysisSchema, MetadataSchema, SeasonEnum, StyleTagEnum, ClothingTypeEnum };
+export declare const validateClothingItem: (item: unknown) => ClothingItem;
+export declare const validateClothingItems: (items: unknown[]) => ClothingItem[];

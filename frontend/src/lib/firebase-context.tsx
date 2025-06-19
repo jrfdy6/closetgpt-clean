@@ -1,26 +1,40 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "./firebase/config";
 
 interface FirebaseContextType {
   user: User | null;
   loading: boolean;
+  error: Error | null;
 }
 
 const FirebaseContext = createContext<FirebaseContextType>({
   user: null,
   loading: true,
+  error: null,
 });
 
-export function FirebaseProvider({ children }: { children: React.ReactNode }) {
+export const useFirebase = () => useContext(FirebaseContext);
+
+export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (!auth) {
+      setError(new Error("Firebase Auth is not initialized"));
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setLoading(false);
+    }, (error) => {
+      setError(error);
       setLoading(false);
     });
 
@@ -28,16 +42,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <FirebaseContext.Provider value={{ user, loading }}>
+    <FirebaseContext.Provider value={{ user, loading, error }}>
       {children}
     </FirebaseContext.Provider>
   );
-}
-
-export function useFirebase() {
-  const context = useContext(FirebaseContext);
-  if (context === undefined) {
-    throw new Error("useFirebase must be used within a FirebaseProvider");
-  }
-  return context;
-} 
+}; 

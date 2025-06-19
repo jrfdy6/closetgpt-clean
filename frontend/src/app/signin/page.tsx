@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase/config";
 import { useToast } from "@/components/ui/use-toast";
 import { useFirebase } from "@/lib/firebase-context";
 
@@ -26,6 +26,16 @@ export default function SignInPage() {
     e.preventDefault();
     setSigningIn(true);
 
+    if (!auth) {
+      toast({
+        title: "Error",
+        description: "Authentication is not initialized",
+        variant: "destructive",
+      });
+      setSigningIn(false);
+      return;
+    }
+
     try {
       console.log("Attempting to sign in with email:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -45,6 +55,16 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     setSigningIn(true);
+
+    if (!auth) {
+      toast({
+        title: "Error",
+        description: "Authentication is not initialized",
+        variant: "destructive",
+      });
+      setSigningIn(false);
+      return;
+    }
 
     try {
       console.log("Attempting to sign in with Google");

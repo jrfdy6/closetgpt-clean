@@ -1,11 +1,11 @@
 import { ApiResponse } from '../types';
 
-class ApiClient {
+export class ApiClient {
   private static instance: ApiClient;
   private baseUrl: string;
 
   private constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   }
 
   public static getInstance(): ApiClient {
@@ -20,7 +20,11 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      // Remove leading slash from endpoint if it exists
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+      const url = `${this.baseUrl}/${cleanEndpoint}`;
+
+      const response = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -32,18 +36,22 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'An error occurred');
+        return {
+          success: false,
+          data: undefined,
+          error: data.message || 'An error occurred'
+        };
       }
 
       return {
-        data: data as T,
-        status: response.status,
-        message: data.message,
+        success: true,
+        data: data as T
       };
     } catch (error) {
       return {
-        error: error instanceof Error ? error.message : 'An error occurred',
-        status: 500,
+        success: false,
+        data: undefined,
+        error: error instanceof Error ? error.message : 'An error occurred'
       };
     }
   }
@@ -83,7 +91,7 @@ class ApiClient {
       headers: {
         ...options.headers,
         // Don't set Content-Type, let the browser set it with the boundary
-        'Content-Type': undefined,
+        'Content-Type': 'multipart/form-data',
       },
     });
   }

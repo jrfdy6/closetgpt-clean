@@ -1,43 +1,54 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const API_ENDPOINTS = {
   // Auth endpoints
   AUTH: {
-    LOGIN: `${API_BASE_URL}/auth/login`,
-    REGISTER: `${API_BASE_URL}/auth/register`,
-    LOGOUT: `${API_BASE_URL}/auth/logout`,
-    REFRESH: `${API_BASE_URL}/auth/refresh`,
+    LOGIN: `${API_BASE_URL}/api/auth/login`,
+    REGISTER: `${API_BASE_URL}/api/auth/register`,
+    LOGOUT: `${API_BASE_URL}/api/auth/logout`,
+    REFRESH: `${API_BASE_URL}/api/auth/refresh`,
   },
   
   // User endpoints
   USER: {
-    PROFILE: `${API_BASE_URL}/users/profile`,
-    UPDATE_PROFILE: `${API_BASE_URL}/users/profile`,
-    STYLE_PROFILE: `${API_BASE_URL}/users/style-profile`,
+    PROFILE: '/api/user/profile',
+    UPDATE_PROFILE: `${API_BASE_URL}/api/users/profile`,
+    STYLE_PROFILE: `${API_BASE_URL}/api/users/style-profile`,
+    PREFERENCES: '/api/user/preferences',
+    SETTINGS: '/api/user/settings'
   },
   
   // Wardrobe endpoints
   WARDROBE: {
-    ITEMS: `${API_BASE_URL}/wardrobe/items`,
-    ITEM: (id: string) => `${API_BASE_URL}/wardrobe/items/${id}`,
-    UPLOAD: `${API_BASE_URL}/wardrobe/upload`,
-    CATEGORIES: `${API_BASE_URL}/wardrobe/categories`,
+    LIST: '/api/wardrobe',
+    CREATE: '/api/wardrobe',
+    GET: (id: string) => `/api/wardrobe/${id}`,
+    UPDATE: (id: string) => `/api/wardrobe/${id}`,
+    DELETE: (id: string) => `/api/wardrobe/${id}`,
+    ANALYZE: '/api/wardrobe/analyze'
   },
   
   // Outfit endpoints
   OUTFITS: {
-    LIST: `${API_BASE_URL}/outfits`,
-    CREATE: `${API_BASE_URL}/outfits`,
-    GET: (id: string) => `${API_BASE_URL}/outfits/${id}`,
-    UPDATE: (id: string) => `${API_BASE_URL}/outfits/${id}`,
-    DELETE: (id: string) => `${API_BASE_URL}/outfits/${id}`,
-    RECOMMENDATIONS: `${API_BASE_URL}/outfits/recommendations`,
+    LIST: '/api/outfits',
+    CREATE: '/api/outfits',
+    GET: (id: string) => `/api/outfits/${id}`,
+    UPDATE: (id: string) => `/api/outfits/${id}`,
+    DELETE: (id: string) => `/api/outfits/${id}`,
+    RECOMMENDATIONS: '/api/outfits/recommendations',
+    GENERATE: '/api/outfits/generate'
   },
   
   // AI endpoints
   AI: {
-    STYLE_ADVICE: `${API_BASE_URL}/ai/style-advice`,
-    OUTFIT_RECOMMENDATIONS: `${API_BASE_URL}/ai/outfit-recommendations`,
-    COLOR_ANALYSIS: `${API_BASE_URL}/ai/color-analysis`,
+    STYLE_ADVICE: `${API_BASE_URL}/api/ai/style-advice`,
+    OUTFIT_RECOMMENDATIONS: `${API_BASE_URL}/api/ai/outfit-recommendations`,
+    COLOR_ANALYSIS: `${API_BASE_URL}/api/ai/color-analysis`,
   },
+  
+  // Weather endpoints
+  WEATHER: {
+    CURRENT: '/weather/current',
+    FORECAST: '/weather/forecast'
+  }
 }; 

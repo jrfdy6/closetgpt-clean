@@ -1,35 +1,71 @@
+// Export responses
+export * from './responses';
+
+// Export wardrobe types
+export {
+  ClothingItemSchema,
+  OutfitSchema,
+  OutfitGeneratedOutfitSchema,
+  OpenAIClothingAnalysisSchema,
+  UserProfileSchema,
+  ColorSchema,
+  VisualAttributesSchema,
+  ItemMetadataSchema,
+  BasicMetadataSchema,
+  ColorAnalysisSchema,
+  MetadataSchema,
+  SeasonEnum,
+  StyleTagEnum,
+  ClothingTypeEnum
+} from './wardrobe';
+
+export type {
+  ClothingItem,
+  Outfit,
+  OutfitGeneratedOutfit,
+  OpenAIClothingAnalysis,
+  Color,
+  VisualAttributes,
+  ItemMetadata,
+  BasicMetadata,
+  ColorAnalysis,
+  Metadata,
+  Season,
+  StyleTag,
+  ClothingType
+} from './wardrobe';
+
+// Export user types
+export {
+  UserProfileSchema
+} from './user';
+
+export type {
+  UserProfile
+} from './user';
+
+// Export outfit types
+export {
+  OutfitSchema
+} from './outfit';
+
+export type {
+  Outfit
+} from './outfit';
+
+// Re-export common types
+export type { 
+  ApiResponse, 
+  AppError,
+  ProcessImagesResult,
+  ProcessImagesResponse
+} from './responses';
+
 export interface User {
   id: string;
   email: string;
   displayName: string;
   photoURL?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ClothingItem {
-  id: string;
-  userId: string;
-  name: string;
-  category: ClothingCategory;
-  color: string;
-  material: string;
-  brand?: string;
-  imageUrl: string;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Outfit {
-  id: string;
-  userId: string;
-  name: string;
-  description: string;
-  items: ClothingItem[];
-  occasion?: string;
-  season?: string;
-  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,11 +91,4 @@ export enum ClothingCategory {
   OUTERWEAR = 'outerwear',
   SHOES = 'shoes',
   ACCESSORIES = 'accessories',
-}
-
-export interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  status: number;
-  message: string;
 } 

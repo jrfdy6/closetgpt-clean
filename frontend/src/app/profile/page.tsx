@@ -1,298 +1,191 @@
 "use client";
 
-import { useState } from "react";
-import { useFirebase } from "@/lib/firebase-context";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { updateProfile } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import AvatarSelector from "@/components/AvatarSelector";
-import { useUserProfile } from "@/hooks/useUserProfile";
-import Image from "next/image";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useFirebase } from '@/lib/firebase-context';
+import { useOnboardingStore } from '@/lib/store/onboardingStore';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { useToast } from '@/components/ui/use-toast';
+import type { Occasion, FormalityLevel, Season, FitPreference, SizePreference } from '@/lib/store/onboardingStore';
+
+interface ProfileData {
+  name: string;
+  avatarUrl: string | null;
+  bodyType: string;
+  height: number;
+  weight: number;
+  skinTone: string;
+  stylePreferences: {
+    occasions: Occasion[];
+    formalityLevel: FormalityLevel;
+    seasons: Season[];
+    fitPreference: FitPreference;
+    sizePreference: SizePreference;
+  };
+}
 
 export default function ProfilePage() {
-  const { user } = useFirebase();
-  const {
-    profile,
-    isLoading,
-    error: profileError,
-    updateProfile: updateUserProfile,
-    updatePreferences,
-    updateMeasurements,
-    updateStylePreferences,
-  } = useUserProfile();
+  const router = useRouter();
+  const { user, loading: authLoading } = useFirebase();
+  const { toast } = useToast();
+  const { reset } = useOnboardingStore();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL || null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("basic");
+  useEffect(() => {
+    if (authLoading) return; // Wait for auth to initialize
 
-  // Form states
-  const [bodyType, setBodyType] = useState(profile?.bodyType || "");
-  const [skinTone, setSkinTone] = useState(profile?.skinTone || "");
-  const [fitPreference, setFitPreference] = useState(profile?.fitPreference || "");
-  const [stylePreferences, setStylePreferences] = useState<string[]>(profile?.stylePreferences || []);
-  const [colorPreferences, setColorPreferences] = useState<string[]>(profile?.preferences?.colorPreferences || []);
-  const [patternPreferences, setPatternPreferences] = useState<string[]>(profile?.preferences?.patternPreferences || []);
-  const [fabricPreferences, setFabricPreferences] = useState<string[]>(profile?.preferences?.fabricPreferences || []);
-  const [brandPreferences, setBrandPreferences] = useState<string[]>(profile?.preferences?.brandPreferences || []);
-  const [priceRange, setPriceRange] = useState<"Budget" | "Mid-Range" | "Luxury">(
-    profile?.preferences?.priceRange || "Mid-Range"
-  );
-  const [sustainability, setSustainability] = useState(profile?.preferences?.sustainability || false);
-  const [measurements, setMeasurements] = useState(profile?.measurements || {
-    height: 0,
-    weight: 0,
-  });
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      // Update Firebase auth profile
-      await updateProfile(user, {
-        displayName,
-        photoURL: avatarUrl,
-      });
-
-      // Update user profile in Firestore
-      await updateUserProfile({
-        bodyType,
-        skinTone,
-        fitPreference,
-        stylePreferences,
-        preferences: {
-          colorPreferences,
-          patternPreferences,
-          fabricPreferences,
-          brandPreferences,
-          priceRange,
-          sustainability,
-        },
-        measurements,
-      });
-
-      setIsEditing(false);
-    } catch (err) {
-      setError("Failed to update profile. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (!user) {
+      router.push('/login');
+      return;
     }
+
+    const fetchProfile = async () => {
+      if (!db) return;
+      
+      try {
+        const profileDoc = await getDoc(doc(db, 'profiles', user.uid));
+        if (profileDoc.exists()) {
+          setProfile(profileDoc.data() as ProfileData);
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user, authLoading, router, toast]);
+
+  const handleReonboard = () => {
+    reset();
+    router.push('/onboarding');
   };
 
-  const handleAvatarChange = (url: string) => {
-    setAvatarUrl(url);
-  };
-
-  if (isLoading) {
+  if (authLoading || loading) {
     return (
-      <div>
-        <div>
-          <div>Loading...</div>
-          <div>Loading...</div>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-2xl mx-auto p-6">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-2xl mx-auto p-6">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold">Profile Not Found</h1>
+            <p className="text-muted-foreground">
+              It seems you haven't completed your profile yet.
+            </p>
+            <Button onClick={handleReonboard}>
+              Complete Your Profile
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <ProtectedRoute>
-      <div>
-        <div>
-          <h1>Profile</h1>
-
-          <div>
+    <div className="container mx-auto px-4 py-8">
+      <Card className="max-w-2xl mx-auto p-6">
+        <div className="space-y-6">
+          {/* Profile Header */}
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={profile.avatarUrl || undefined} alt={profile.name} />
+              <AvatarFallback>{profile.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
             <div>
-              <div>
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt="Profile"
-                    fill
-                  />
-                ) : (
-                  <div>
-                    <span>
-                      {user?.displayName?.[0] || user?.email?.[0] || "?"}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <h2>
-                  {user?.displayName || "Anonymous User"}
-                </h2>
-                <p>{user?.email}</p>
-              </div>
+              <h1 className="text-2xl font-bold">{profile.name}</h1>
+              <p className="text-muted-foreground">
+                {profile.bodyType} • {profile.height}" • {profile.weight}lbs
+              </p>
             </div>
+          </div>
 
-            {(error || profileError) && (
+          {/* Style Preferences */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Style Preferences</h2>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                {error || profileError}
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Occasions</h3>
+                <div className="flex flex-wrap gap-2">
+                  {profile.stylePreferences.occasions.map((occasion) => (
+                    <span
+                      key={occasion}
+                      className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
+                    >
+                      {occasion}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-
-            <div>
               <div>
-                <button onClick={() => setActiveTab("basic")}>Basic Info</button>
-                <button onClick={() => setActiveTab("preferences")}>Preferences</button>
-                <button onClick={() => setActiveTab("measurements")}>Measurements</button>
-              </div>
-
-              {activeTab === "basic" && (
-                <div>
-                  <div>
-                    <label htmlFor="displayName">Display Name</label>
-                    <input
-                      id="displayName"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Enter your display name"
-                    />
-                  </div>
-
-                  <div>
-                    <label>Profile Picture</label>
-                    <AvatarSelector
-                      currentAvatar={avatarUrl}
-                      onAvatarChange={handleAvatarChange}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="bodyType">Body Type</label>
-                    <select
-                      id="bodyType"
-                      value={bodyType}
-                      onChange={(e) => setBodyType(e.target.value)}
-                    >
-                      <option value="">Select body type</option>
-                      <option value="athletic">Athletic</option>
-                      <option value="hourglass">Hourglass</option>
-                      <option value="pear">Pear</option>
-                      <option value="apple">Apple</option>
-                      <option value="rectangle">Rectangle</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="skinTone">Skin Tone</label>
-                    <select
-                      id="skinTone"
-                      value={skinTone}
-                      onChange={(e) => setSkinTone(e.target.value)}
-                    >
-                      <option value="">Select skin tone</option>
-                      <option value="light">Light</option>
-                      <option value="medium-light">Medium Light</option>
-                      <option value="medium">Medium</option>
-                      <option value="medium-dark">Medium Dark</option>
-                      <option value="dark">Dark</option>
-                      <option value="deep">Deep</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="fitPreference">Fit Preference</label>
-                    <select
-                      id="fitPreference"
-                      value={fitPreference}
-                      onChange={(e) => setFitPreference(e.target.value)}
-                    >
-                      <option value="">Select fit preference</option>
-                      <option value="fitted">Fitted</option>
-                      <option value="relaxed">Relaxed</option>
-                      <option value="oversized">Oversized</option>
-                      <option value="loose">Loose</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "preferences" && (
-                <div>
-                  <div>
-                    <label htmlFor="stylePreferences">Style Preferences</label>
-                    <select
-                      id="stylePreferences"
-                      value={stylePreferences[0]}
-                      onChange={(e) => setStylePreferences([e.target.value])}
-                    >
-                      <option value="">Select style preferences</option>
-                      <option value="streetwear">Streetwear</option>
-                      <option value="minimal">Minimal</option>
-                      <option value="athletic">Athletic</option>
-                      <option value="formal">Formal</option>
-                      <option value="casual">Casual</option>
-                      <option value="luxury">Luxury</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="priceRange">Price Range</label>
-                    <select
-                      id="priceRange"
-                      value={priceRange}
-                      onChange={(e) => setPriceRange(e.target.value as "Budget" | "Mid-Range" | "Luxury")}
-                    >
-                      <option value="Budget">Budget</option>
-                      <option value="Mid-Range">Mid-Range</option>
-                      <option value="Luxury">Luxury</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={sustainability}
-                        onChange={(e) => setSustainability(e.target.checked)}
-                      />
-                      Sustainability Focus
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "measurements" && (
-                <div>
-                  <div>
-                    <label htmlFor="height">Height (cm)</label>
-                    <input
-                      id="height"
-                      type="number"
-                      value={measurements.height}
-                      onChange={(e) => setMeasurements({ ...measurements, height: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="weight">Weight (kg)</label>
-                    <input
-                      id="weight"
-                      type="number"
-                      value={measurements.weight}
-                      onChange={(e) => setMeasurements({ ...measurements, weight: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <button onClick={handleUpdateProfile} disabled={loading}>
-                  {loading ? "Saving..." : "Save Changes"}
-                </button>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Formality Level</h3>
+                <p className="mt-1">{profile.stylePreferences.formalityLevel}</p>
               </div>
             </div>
           </div>
+
+          {/* Seasonal Preferences */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Seasonal Preferences</h2>
+            <div className="flex flex-wrap gap-2">
+              {profile.stylePreferences.seasons.map((season) => (
+                <span
+                  key={season}
+                  className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
+                >
+                  {season}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Fit & Size */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Fit & Size</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Fit Preference</h3>
+                <p className="mt-1">{profile.stylePreferences.fitPreference}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Size Preference</h3>
+                <p className="mt-1">{profile.stylePreferences.sizePreference}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="pt-4">
+            <Button
+              onClick={handleReonboard}
+              className="w-full"
+              variant="outline"
+            >
+              Update Style Preferences
+            </Button>
+          </div>
         </div>
-      </div>
-    </ProtectedRoute>
+      </Card>
+    </div>
   );
 } 

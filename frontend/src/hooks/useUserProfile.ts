@@ -8,7 +8,8 @@ import {
   updateUserMeasurements,
   updateUserStylePreferences,
 } from "@/lib/firebase/userService";
-import type { UserProfile } from "@/lib/utils/outfitGenerator";
+import { UserProfileSchema } from "@shared/types";
+import type { UserProfile } from "@shared/types";
 
 export function useUserProfile() {
   const { user } = useFirebase();
@@ -23,11 +24,42 @@ export function useUserProfile() {
     try {
       setIsLoading(true);
       setError(null);
-      const userProfile = await getUserProfile(user.uid);
-      setProfile(userProfile);
+      const validatedProfile = await getUserProfile(user.uid);
+      
+      if (!validatedProfile) {
+        // Create a new profile if one doesn't exist
+        const newProfile = {
+          id: user.uid,
+          name: user.displayName || "",
+          email: user.email || "",
+          gender: "male" as const,
+          preferences: {
+            style: [],
+            colors: [],
+            occasions: []
+          },
+          measurements: {
+            height: 0,
+            weight: 0,
+            bodyType: "average",
+            skinTone: "medium"
+          },
+          stylePreferences: [],
+          bodyType: "average",
+          skinTone: "medium",
+          fitPreference: "fitted" as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        
+        await setUserProfile(user.uid, newProfile);
+        setProfile(newProfile);
+      } else {
+        setProfile(validatedProfile);
+      }
     } catch (err) {
       setError("Failed to fetch user profile");
-      console.error(err);
+      console.error("Profile error:", err);
     } finally {
       setIsLoading(false);
     }

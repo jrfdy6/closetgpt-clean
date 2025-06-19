@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { User } from '../types';
-import { STORAGE_KEYS } from '../constants';
-import { ApiClient } from '../api/client';
+import { UserProfile } from '../types';
+import { STORAGE_KEYS } from '../constants/index';
+import { apiClient } from '../api/client';
 import { API_ENDPOINTS } from '../api/endpoints';
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +20,7 @@ export const useAuth = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await ApiClient.getInstance().get<User>(API_ENDPOINTS.USER.PROFILE);
+      const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USER.PROFILE);
       if (response.data) {
         setUser(response.data);
       }
@@ -36,7 +36,7 @@ export const useAuth = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await ApiClient.getInstance().post<{ token: string; user: User }>(
+      const response = await apiClient.post<{ token: string; user: UserProfile }>(
         API_ENDPOINTS.AUTH.LOGIN,
         { email, password }
       );
@@ -57,7 +57,7 @@ export const useAuth = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await ApiClient.getInstance().post<{ token: string; user: User }>(
+      const response = await apiClient.post<{ token: string; user: UserProfile }>(
         API_ENDPOINTS.AUTH.REGISTER,
         { email, password, displayName }
       );
@@ -76,7 +76,7 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
-      await ApiClient.getInstance().post(API_ENDPOINTS.AUTH.LOGOUT);
+      await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {});
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
@@ -85,11 +85,11 @@ export const useAuth = () => {
     }
   };
 
-  const updateProfile = async (updates: Partial<User>) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await ApiClient.getInstance().put<User>(
+      const response = await apiClient.put<UserProfile>(
         API_ENDPOINTS.USER.UPDATE_PROFILE,
         updates
       );

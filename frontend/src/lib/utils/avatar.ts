@@ -15,51 +15,51 @@ const SKIN_TONE_MAP = {
 const BODY_TYPE_STYLES = {
   // Female styles
   female: {
-    hourglass: "adventurer",
-    pear: "adventurer",
-    apple: "adventurer",
-    rectangle: "adventurer",
-    "inverted-triangle": "adventurer",
-    petite: "adventurer",
-    tall: "adventurer",
-    "plus-curvy": "adventurer",
-    "lean-column": "adventurer",
+    hourglass: "avataaars",
+    pear: "avataaars",
+    apple: "avataaars",
+    rectangle: "avataaars",
+    "inverted-triangle": "avataaars",
+    petite: "avataaars",
+    tall: "avataaars",
+    "plus-curvy": "avataaars",
+    "lean-column": "avataaars",
   },
   // Male styles
   male: {
-    rectangle: "adventurer",
-    triangle: "adventurer",
-    "inverted-triangle": "adventurer",
-    oval: "adventurer",
-    trapezoid: "adventurer",
-    slim: "adventurer",
-    stocky: "adventurer",
-    tall: "adventurer",
-    short: "adventurer",
+    rectangle: "avataaars",
+    triangle: "avataaars",
+    "inverted-triangle": "avataaars",
+    oval: "avataaars",
+    trapezoid: "avataaars",
+    slim: "avataaars",
+    stocky: "avataaars",
+    tall: "avataaars",
+    short: "avataaars",
   },
 };
 
 // Hair style options for each gender
 const HAIR_STYLES = {
   female: [
-    { id: "long-straight", label: "Long Straight", value: "long01" },
-    { id: "long-wavy", label: "Long Wavy", value: "long02" },
-    { id: "medium-straight", label: "Medium Straight", value: "medium01" },
-    { id: "medium-wavy", label: "Medium Wavy", value: "medium02" },
-    { id: "short-straight", label: "Short Straight", value: "short01" },
-    { id: "short-wavy", label: "Short Wavy", value: "short02" },
-    { id: "bob", label: "Bob", value: "bob01" },
-    { id: "pixie", label: "Pixie", value: "pixie01" },
+    { id: "female-long-straight", label: "Long Straight", value: "longHairStraight" },
+    { id: "female-long-wavy", label: "Long Wavy", value: "longHairCurly" },
+    { id: "female-medium-straight", label: "Medium Straight", value: "shortHairShortFlat" },
+    { id: "female-medium-wavy", label: "Medium Wavy", value: "shortHairShortWaved" },
+    { id: "female-short-straight", label: "Short Straight", value: "shortHairShortRound" },
+    { id: "female-short-wavy", label: "Short Wavy", value: "shortHairShortCurly" },
+    { id: "female-bob", label: "Bob", value: "shortHairBob" },
+    { id: "female-pixie", label: "Pixie", value: "shortHairPixie" },
   ],
   male: [
-    { id: "short-classic", label: "Short Classic", value: "short01" },
-    { id: "short-messy", label: "Short Messy", value: "short02" },
-    { id: "medium-straight", label: "Medium Straight", value: "medium01" },
-    { id: "medium-wavy", label: "Medium Wavy", value: "medium02" },
-    { id: "long-straight", label: "Long Straight", value: "long01" },
-    { id: "long-wavy", label: "Long Wavy", value: "long02" },
-    { id: "buzz", label: "Buzz Cut", value: "buzz01" },
-    { id: "fade", label: "Fade", value: "fade01" },
+    { id: "male-short-classic", label: "Short Classic", value: "shortHairShortFlat" },
+    { id: "male-short-messy", label: "Short Messy", value: "shortHairShortWaved" },
+    { id: "male-medium-straight", label: "Medium Straight", value: "shortHairShortRound" },
+    { id: "male-medium-wavy", label: "Medium Wavy", value: "shortHairShortCurly" },
+    { id: "male-long-straight", label: "Long Straight", value: "longHairStraight" },
+    { id: "male-long-wavy", label: "Long Wavy", value: "longHairCurly" },
+    { id: "male-buzz", label: "Buzz Cut", value: "shortHairBuzzCut" },
+    { id: "male-fade", label: "Fade", value: "shortHairFade" },
   ],
 };
 
@@ -88,34 +88,33 @@ export function generateAvatarUrl({
   gender, 
   bodyType, 
   skinTone, 
-  hairStyle = gender === "female" ? "long01" : "short01",
+  hairStyle = "shortHairShortFlat",
   hairColor = "3c2a21",
   seed 
 }: AvatarOptions): string {
   const style = BODY_TYPE_STYLES[gender][bodyType as keyof typeof BODY_TYPE_STYLES[typeof gender]];
   const skinColor = SKIN_TONE_MAP[skinTone];
   
-  // Use a combination of gender, body type, and skin tone as the seed if not provided
   const avatarSeed = seed || `${gender}-${bodyType}-${skinTone}-${hairStyle}-${hairColor}`;
   
-  // Construct the DiceBear URL with our parameters
   const url = new URL(`${DICEBEAR_API}/${style}/svg`);
   url.searchParams.append("seed", avatarSeed);
   url.searchParams.append("backgroundColor", "transparent");
-  url.searchParams.append("skin", skinColor);
   
-  // Add gender-specific parameters
-  if (gender === "female") {
-    url.searchParams.append("hair", hairStyle);
-    url.searchParams.append("hairColor", hairColor);
-    url.searchParams.append("clothing", "variant01");
-    url.searchParams.append("clothingColor", "3c4f5c");
-  } else {
-    url.searchParams.append("hair", hairStyle);
-    url.searchParams.append("hairColor", hairColor);
-    url.searchParams.append("clothing", "variant02");
-    url.searchParams.append("clothingColor", "3c4f5c");
-  }
+  // Avataaars-specific parameters
+  url.searchParams.append("top", hairStyle);
+  url.searchParams.append("topChance", "100");
+  url.searchParams.append("topColor", hairColor);
+  url.searchParams.append("skinColor", skinColor);
+  url.searchParams.append("clothing", gender === "female" ? "blazerShirt" : "shirtCrewNeck");
+  url.searchParams.append("clothingColor", gender === "female" ? "65a9e6" : "3b82f6");
+  url.searchParams.append("mouth", "default");
+  url.searchParams.append("eyes", "default");
+  url.searchParams.append("eyebrows", "default");
+  url.searchParams.append("accessories", "none");
+  url.searchParams.append("accessoriesColor", "000000");
+  url.searchParams.append("facialHair", "none");
+  url.searchParams.append("facialHairColor", "000000");
 
   return url.toString();
 }

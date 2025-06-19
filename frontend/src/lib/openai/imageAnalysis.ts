@@ -1,14 +1,13 @@
-import { OpenAIClothingAnalysis } from '../../../../shared/types';
-import { validateOpenAIAnalysis } from '../../../../shared/utils';
+import { OpenAIClothingAnalysis } from '@shared/types/wardrobe';
 
 export const analyzeImage = async (imageUrl: string): Promise<OpenAIClothingAnalysis> => {
   try {
-    const response = await fetch('/api/analysis', {
+    const response = await fetch('http://localhost:3001/api/analyze-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ imageUrl }),
+      body: JSON.stringify({ image: imageUrl }),
     });
 
     if (!response.ok) {
@@ -16,7 +15,7 @@ export const analyzeImage = async (imageUrl: string): Promise<OpenAIClothingAnal
     }
 
     const data = await response.json();
-    return validateOpenAIAnalysis(data);
+    return data as OpenAIClothingAnalysis;
   } catch (error) {
     console.error('Error analyzing image:', error);
     throw error;

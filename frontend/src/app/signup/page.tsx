@@ -4,14 +4,22 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase/config";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useFirebase } from "@/lib/firebase-context";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { createInitialUserProfile } from "@/lib/firebase/userService";
+import { useOnboardingStore } from "@/lib/store/onboardingStore";
 
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, loading } = useFirebase();
+  const resetOnboarding = useOnboardingStore(state => state.reset);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,13 +27,23 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/dashboard");
+      router.push("/onboarding");
     }
   }, [user, loading, router]);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSigningUp(true);
+
+    if (!auth) {
+      toast({
+        title: "Error",
+        description: "Authentication is not initialized",
+        variant: "destructive",
+      });
+      setSigningUp(false);
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast({
@@ -41,7 +59,18 @@ export default function SignUpPage() {
       console.log("Attempting to sign up with email:", email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       console.log("Sign up successful:", userCredential.user);
-      router.push("/dashboard");
+      
+      // Reset onboarding store
+      resetOnboarding();
+      
+      // Create initial user profile
+      await createInitialUserProfile(
+        userCredential.user.uid,
+        userCredential.user.email!,
+        userCredential.user.displayName
+      );
+      
+      router.push("/onboarding");
     } catch (error) {
       console.error("Sign up error:", error);
       toast({
@@ -57,12 +86,33 @@ export default function SignUpPage() {
   const handleGoogleSignUp = async () => {
     setSigningUp(true);
 
+    if (!auth) {
+      toast({
+        title: "Error",
+        description: "Authentication is not initialized",
+        variant: "destructive",
+      });
+      setSigningUp(false);
+      return;
+    }
+
     try {
       console.log("Attempting to sign up with Google");
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       console.log("Google sign up successful:", userCredential.user);
-      router.push("/dashboard");
+      
+      // Reset onboarding store
+      resetOnboarding();
+      
+      // Create initial user profile
+      await createInitialUserProfile(
+        userCredential.user.uid,
+        userCredential.user.email!,
+        userCredential.user.displayName
+      );
+      
+      router.push("/onboarding");
     } catch (error) {
       console.error("Google sign up error:", error);
       toast({

@@ -8,6 +8,8 @@ import { generateAvatarUrl, HAIR_STYLES, HAIR_COLORS } from "@/lib/utils/avatar"
 interface AvatarSelectorProps {
   currentAvatar: string | null;
   onAvatarChange: (url: string) => void;
+  initialGender?: "male" | "female";
+  onComplete?: () => void;
 }
 
 type SkinTone = "light" | "medium-light" | "medium" | "medium-dark" | "dark" | "deep";
@@ -46,12 +48,12 @@ const MALE_AVATARS = [
   { id: "male9", type: "short", label: "Short" },
 ];
 
-export default function AvatarSelector({ currentAvatar, onAvatarChange }: AvatarSelectorProps) {
-  const [selectedGender, setSelectedGender] = useState<"female" | "male">("female");
+export default function AvatarSelector({ currentAvatar, onAvatarChange, initialGender, onComplete }: AvatarSelectorProps) {
+  const [selectedGender, setSelectedGender] = useState<"female" | "male">(initialGender || "female");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedTone, setSelectedTone] = useState<SkinTone>("light");
   const [selectedHairStyle, setSelectedHairStyle] = useState<string>(
-    HAIR_STYLES.female[0].value
+    HAIR_STYLES[initialGender || "female"][0].value
   );
   const [selectedHairColor, setSelectedHairColor] = useState<string>(
     HAIR_COLORS[1].value
@@ -60,6 +62,7 @@ export default function AvatarSelector({ currentAvatar, onAvatarChange }: Avatar
   const [file, setFile] = useState<File | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const { uploadFile, uploading, error } = useStorage();
+  const [imageError, setImageError] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -132,6 +135,17 @@ export default function AvatarSelector({ currentAvatar, onAvatarChange }: Avatar
   const handleGenderChange = (gender: "female" | "male") => {
     setSelectedGender(gender);
     setSelectedHairStyle(HAIR_STYLES[gender][0].value);
+    // Generate a new avatar URL with the updated gender
+    if (currentAvatar) {
+      const url = generateAvatarUrl({
+        gender,
+        bodyType: selectedType === "all" ? (gender === "female" ? "hourglass" : "rectangle") : selectedType,
+        skinTone: selectedTone,
+        hairStyle: HAIR_STYLES[gender][0].value,
+        hairColor: selectedHairColor,
+      });
+      onAvatarChange(url);
+    }
   };
 
   const handleAvatarSelect = (avatar: typeof FEMALE_AVATARS[0]) => {
@@ -140,119 +154,226 @@ export default function AvatarSelector({ currentAvatar, onAvatarChange }: Avatar
     setShowPreview(true);
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+    console.error("Failed to load avatar image");
+    // Retry loading with a different seed and simplified parameters
+    if (currentAvatar) {
+      const url = generateAvatarUrl({
+        gender: selectedGender,
+        bodyType: selectedType === "all" ? (selectedGender === "female" ? "hourglass" : "rectangle") : selectedType,
+        skinTone: selectedTone,
+        hairStyle: selectedHairStyle,
+        hairColor: selectedHairColor,
+        seed: `${Date.now()}-${Math.random()}`, // Add a unique seed
+      });
+      onAvatarChange(url);
+    }
+  };
+
+  const handleContinue = () => {
+    if (currentAvatar) {
+      onComplete?.();
+    }
+  };
+
   return (
-    <div>
+    <div className="space-y-6">
       {showPreview && currentAvatar && (
-        <div onClick={() => setShowPreview(false)}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={currentAvatar}
-              alt="Selected Avatar"
-              fill
-              sizes="(max-width: 768px) 100vw, 16rem"
-            />
-            <button onClick={() => setShowPreview(false)}>
-              ×
-            </button>
-          </div>
+        <div className="relative w-48 h-48 mx-auto mb-4">
+          <Image
+            src={currentAvatar}
+            alt="Selected Avatar"
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 12rem"
+            onError={handleImageError}
+            unoptimized
+            priority
+            loading="eager"
+          />
+          <button 
+            onClick={() => setShowPreview(false)}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      <div>
+      <div className="flex gap-4 justify-center">
+        <button
+          onClick={() => handleGenderChange("female")}
+          className={`px-4 py-2 rounded ${
+            selectedGender === "female" 
+              ? "bg-blue-500 text-white" 
+              : "bg-gray-200 text-gray-700"
+          }`}
+        >
+          Female
+        </button>
+        <button
+          onClick={() => handleGenderChange("male")}
+          className={`px-4 py-2 rounded ${
+            selectedGender === "male" 
+              ? "bg-blue-500 text-white" 
+              : "bg-gray-200 text-gray-700"
+          }`}
+        >
+          Male
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <button
-            onClick={() => handleGenderChange("female")}
+          <label className="block text-sm font-medium mb-2">Body Type</label>
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="w-full p-2 border rounded"
           >
-            Female
-          </button>
-          <button
-            onClick={() => handleGenderChange("male")}
-          >
-            Male
-          </button>
+            {bodyTypeOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-        >
-          {bodyTypeOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label>Skin Tone</label>
         <div>
-          {SKIN_TONES.map((tone) => (
-            <button
-              key={tone.id}
-              onClick={() => setSelectedTone(tone.value)}
-              style={{ backgroundColor: tone.color }}
-              title={tone.label}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label>Hair Style</label>
-        <select
-          value={selectedHairStyle}
-          onChange={(e) => setSelectedHairStyle(e.target.value)}
-        >
-          {HAIR_STYLES[selectedGender].map((style) => (
-            <option key={style.value} value={style.value}>
-              {style.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label>Hair Color</label>
-        <select
-          value={selectedHairColor}
-          onChange={(e) => setSelectedHairColor(e.target.value)}
-        >
-          {HAIR_COLORS.map((color) => (
-            <option key={color.value} value={color.value}>
-              {color.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label>Upload Custom Avatar</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-        />
-        {preview && (
-          <div>
-            <img src={preview} alt="Preview" />
-            <button onClick={handleUpload} disabled={uploading}>
-              {uploading ? "Uploading..." : "Upload"}
-            </button>
+          <label className="block text-sm font-medium mb-2">Skin Tone</label>
+          <div className="flex gap-2">
+            {SKIN_TONES.map((tone) => (
+              <button
+                key={tone.id}
+                onClick={() => {
+                  setSelectedTone(tone.value);
+                  if (currentAvatar) {
+                    const url = generateAvatarUrl({
+                      gender: selectedGender,
+                      bodyType: selectedType === "all" ? (selectedGender === "female" ? "hourglass" : "rectangle") : selectedType,
+                      skinTone: tone.value,
+                      hairStyle: selectedHairStyle,
+                      hairColor: selectedHairColor,
+                      seed: `${Date.now()}-${Math.random()}`, // Add a unique seed
+                    });
+                    onAvatarChange(url);
+                  }
+                }}
+                style={{ backgroundColor: tone.color }}
+                className={`w-8 h-8 rounded-full border-2 ${
+                  selectedTone === tone.value ? "border-blue-500" : "border-transparent"
+                }`}
+                title={tone.label}
+              />
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
-      <div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Hair Style</label>
+          <select
+            value={selectedHairStyle}
+            onChange={(e) => {
+              setSelectedHairStyle(e.target.value);
+              if (currentAvatar) {
+                const url = generateAvatarUrl({
+                  gender: selectedGender,
+                  bodyType: selectedType === "all" ? (selectedGender === "female" ? "hourglass" : "rectangle") : selectedType,
+                  skinTone: selectedTone,
+                  hairStyle: e.target.value,
+                  hairColor: selectedHairColor,
+                  seed: `${Date.now()}-${Math.random()}`, // Add a unique seed
+                });
+                onAvatarChange(url);
+              }
+            }}
+            className="w-full p-2 border rounded"
+          >
+            {HAIR_STYLES[selectedGender].map((style) => (
+              <option key={style.id} value={style.value}>
+                {style.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Hair Color</label>
+          <div className="flex gap-2">
+            {HAIR_COLORS.map((color) => (
+              <button
+                key={color.id}
+                onClick={() => {
+                  setSelectedHairColor(color.value);
+                  if (currentAvatar) {
+                    const url = generateAvatarUrl({
+                      gender: selectedGender,
+                      bodyType: selectedType === "all" ? (selectedGender === "female" ? "hourglass" : "rectangle") : selectedType,
+                      skinTone: selectedTone,
+                      hairStyle: selectedHairStyle,
+                      hairColor: color.value,
+                      seed: `${Date.now()}-${Math.random()}`, // Add a unique seed
+                    });
+                    onAvatarChange(url);
+                  }
+                }}
+                style={{ backgroundColor: `#${color.value}` }}
+                className={`w-8 h-8 rounded-full border-2 ${
+                  selectedHairColor === color.value ? "border-blue-500" : "border-transparent"
+                }`}
+                title={color.label}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
         {filteredAvatars.map((avatar) => (
-          <div key={avatar.id} onClick={() => handleAvatarSelect(avatar)}>
-            <img
-              src={getAvatarUrl(avatar)}
-              alt={avatar.label}
-            />
-            <p>{avatar.label}</p>
-          </div>
+          <button
+            key={avatar.id}
+            onClick={() => handleAvatarSelect(avatar)}
+            className="p-2 border rounded hover:border-blue-500"
+          >
+            <div className="relative w-full h-32">
+              <Image
+                src={getAvatarUrl(avatar)}
+                alt={avatar.label}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 8rem"
+                onError={handleImageError}
+                unoptimized
+                priority
+                loading="eager"
+              />
+            </div>
+            <p className="text-sm text-center mt-2">{avatar.label}</p>
+          </button>
         ))}
+      </div>
+
+      {imageError && (
+        <div className="text-red-500 text-center mt-4">
+          Failed to load avatar image. Please try again.
+        </div>
+      )}
+
+      <div className="flex justify-center mt-6">
+        <button
+          onClick={handleContinue}
+          disabled={!currentAvatar}
+          className={`px-6 py-2 rounded-lg font-medium ${
+            currentAvatar
+              ? "bg-blue-500 text-white hover:bg-blue-600"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          Continue
+        </button>
       </div>
     </div>
   );

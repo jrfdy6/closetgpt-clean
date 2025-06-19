@@ -7,6 +7,10 @@ import type { OpenAIClothingAnalysis } from "../../../shared/types";
 // Load environment variables
 config();
 
+console.log("Environment variables loaded:");
+console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
+console.log("OPENAI_API_KEY length:", process.env.OPENAI_API_KEY?.length);
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -19,7 +23,7 @@ async function analyzeClothingImage(imagePath: string): Promise<OpenAIClothingAn
     const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "user",
@@ -54,7 +58,7 @@ async function analyzeClothingImage(imagePath: string): Promise<OpenAIClothingAn
             },
             {
               type: "image_url",
-              image_url: imageUrl,
+              image_url: { url: imageUrl }
             },
           ],
         },
@@ -64,8 +68,10 @@ async function analyzeClothingImage(imagePath: string): Promise<OpenAIClothingAn
 
     const content = response.choices[0].message.content;
     if (!content) throw new Error("No response from OpenAI");
-
-    return JSON.parse(content) as OpenAIClothingAnalysis;
+    
+    // Remove markdown formatting if present
+    const jsonStr = content.replace(/^```json\n|\n```$/g, '');
+    return JSON.parse(jsonStr) as OpenAIClothingAnalysis;
   } catch (error) {
     console.error("Error analyzing image:", error);
     throw error;

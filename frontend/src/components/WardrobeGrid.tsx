@@ -2,44 +2,24 @@
 
 import { useState } from "react";
 import Image from "next/image";
-
-interface ClothingItem {
-  id: string;
-  name: string;
-  category: string;
-  imageUrl: string;
-}
+import { ClothingItem } from "@shared/types";
 
 export default function WardrobeGrid() {
-  const [items] = useState<ClothingItem[]>([
-    {
-      id: "1",
-      name: "Blue T-Shirt",
-      category: "Tops",
-      imageUrl: "/placeholder.jpg",
-    },
-    {
-      id: "2",
-      name: "Black Jeans",
-      category: "Bottoms",
-      imageUrl: "/placeholder.jpg",
-    },
-  ]);
+  const [items, setItems] = useState<ClothingItem[]>([]);
 
   return (
-    <div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {items.map((item) => (
-        <div key={item.id}>
-          <div>
-            <Image
-              src={item.imageUrl}
-              alt={item.name}
-              fill
-            />
-          </div>
-          <div>
-            <h3>{item.name}</h3>
-            <p>{item.category}</p>
+        <div key={item.id} className="relative aspect-square">
+          <Image
+            src={item.imageUrl}
+            alt={item.name}
+            fill
+            className="object-cover rounded-lg"
+          />
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-50 text-white rounded-b-lg">
+            <p className="text-sm font-medium">{item.name}</p>
+            <p className="text-xs">{item.type}</p>
           </div>
         </div>
       ))}

@@ -1,206 +1,241 @@
-import { useState, useCallback, useEffect } from "react";
-import { useFirebase } from "@/lib/firebase-context";
+import { useState, useCallback, useEffect } from 'react';
+import { ClothingItem, ClothingItemSchema, validateClothingItems } from '@/types/wardrobe';
 import {
   getWardrobeItems,
-  getWardrobeItem,
   addWardrobeItem,
   updateWardrobeItem,
   deleteWardrobeItem,
-  getWardrobeItemsByCategory,
+  getWardrobeItemsByType,
   getWardrobeItemsBySeason,
-  processAndAddImages,
-  deleteMultipleWardrobeItems,
-} from "@/lib/firebase/wardrobeService";
-import type { ClothingItem } from "@/lib/utils/outfitGenerator";
+  processAndAddImages
+} from '@/lib/firebase/wardrobeService';
+import { useFirebase } from '@/lib/firebase-context';
+import { createClothingItemFromAnalysis } from '@/lib/utils/itemProcessing';
+import { ApiResponse } from '@shared/types/responses';
+import { WardrobeItem } from '@/types/wardrobe';
 
-export function useWardrobe() {
-  const { user, loading: authLoading } = useFirebase();
-  const [items, setItems] = useState<ClothingItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function useWardrobe(): {
+  wardrobe: WardrobeItem[];
+  loading: boolean;
+  error: string | null;
+  loadItems: () => Promise<void>;
+  addItem: (item: Omit<ClothingItem, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<ApiResponse<ClothingItem>>;
+  updateItem: (itemId: string, updates: Partial<ClothingItem>) => Promise<ApiResponse<ClothingItem>>;
+  removeItem: (itemId: string) => Promise<ApiResponse<void>>;
+  getItemsByType: (type: string) => Promise<ClothingItem[]>;
+  getItemsBySeason: (season: string) => Promise<ClothingItem[]>;
+  processImages: (files: File[]) => Promise<ClothingItem[]>;
+} {
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [processingImages, setProcessingImages] = useState(false);
+  const { user } = useFirebase();
 
-  // Fetch all wardrobe items
-  const fetchItems = useCallback(async () => {
-    if (!user) {
-      setItems([]);
-      setIsLoading(false);
+  const loadItems = useCallback(async () => {
+    console.log('Starting to load items for user:', user?.uid);
+    if (!user?.uid) {
+      console.log('No user ID available, skipping load');
       return;
     }
-
+    setLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      const response = await getWardrobeItems(user.uid);
-      if (response.success && response.data) {
-        // Transform each item to match the ClothingItem type expected by the frontend
-        const transformed = response.data.map((item: any) => ({
-          id: item.id,
-          userId: item.userId,
-          name: item.subType || item.type || '',
-          type: item.type,
-          color: item.dominantColors?.[0]?.name || '',
-          season: item.season || [],
-          imageUrl: item.imageUrl,
-          tags: item.style || [],
-          style: item.style || [],
-          dominantColors: item.dominantColors || [],
-          matchingColors: item.matchingColors || [],
-          occasion: item.occasion || [],
-          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date(item.createdAt).toISOString(),
-          updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date(item.updatedAt).toISOString(),
-          metadata: item.metadata || {},
-        }));
-        setItems(transformed);
-      } else {
-        console.error("Failed to fetch wardrobe items:", response.error);
-        setError(response.error || "Failed to fetch wardrobe items");
-        setItems([]);
+      console.log('Calling getWardrobeItems...');
+      const result = await getWardrobeItems(user.uid);
+      console.log('getWardrobeItems result:', {
+        success: result.success,
+        itemCount: result.data?.length,
+        firstItem: result.data?.[0]
+      });
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load items');
       }
+      if (!result.data) {
+        console.log('No data returned from getWardrobeItems');
+        setWardrobe([]);
+        return;
+      }
+      console.log('Setting wardrobe:', result.data);
+      setWardrobe(result.data);
     } catch (err) {
-      console.error("Error in fetchItems:", err);
-      setError("Failed to fetch wardrobe items");
-      setItems([]);
+      console.error('Error loading wardrobe:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load wardrobe');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [user]);
 
-  // Get a specific wardrobe item
-  const getItem = useCallback(async (itemId: string) => {
-    try {
-      return await getWardrobeItem(itemId);
-    } catch (err) {
-      console.error("Error fetching item:", err);
-      return null;
-    }
-  }, []);
-
-  // Add a new wardrobe item
-  const addItem = useCallback(async (item: Omit<ClothingItem, "id">) => {
-    if (!user) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      // Ensure season is valid and createdAt/updatedAt are numbers
-      const validSeasons = ["spring", "summer", "fall", "winter"];
-      const mappedItem = {
-        ...item,
-        season: (item.season || []).filter((s): s is "spring" | "summer" | "fall" | "winter" => validSeasons.includes(s)),
-        createdAt: typeof item.createdAt === 'string' ? Date.parse(item.createdAt) : item.createdAt,
-        updatedAt: typeof item.updatedAt === 'string' ? Date.parse(item.updatedAt) : item.updatedAt,
-      };
-      await addWardrobeItem(mappedItem);
-      await fetchItems();
-    } catch (err) {
-      setError("Failed to add item");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, fetchItems]);
-
-  // Update a wardrobe item
-  const updateItem = useCallback(async (itemId: string, updates: Partial<ClothingItem>) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const validSeasons = ["spring", "summer", "fall", "winter"];
-      const mappedUpdates = {
-        ...updates,
-        season: updates.season
-          ? updates.season.filter((s): s is "spring" | "summer" | "fall" | "winter" => validSeasons.includes(s))
-          : undefined,
-        createdAt: (typeof updates.createdAt === 'string')
-          ? (isNaN(Date.parse(updates.createdAt)) ? undefined : Date.parse(updates.createdAt))
-          : (typeof updates.createdAt === 'number' ? updates.createdAt : undefined),
-        updatedAt: (typeof updates.updatedAt === 'string')
-          ? (isNaN(Date.parse(updates.updatedAt)) ? undefined : Date.parse(updates.updatedAt))
-          : (typeof updates.updatedAt === 'number' ? updates.updatedAt : undefined),
-      };
-      await updateWardrobeItem(itemId, mappedUpdates);
-      await fetchItems();
-    } catch (err) {
-      setError("Failed to update item");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchItems]);
-
-  // Delete a wardrobe item
-  const deleteItem = useCallback(async (itemId: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      await deleteWardrobeItem(itemId);
-      await fetchItems();
-    } catch (err) {
-      setError("Failed to delete item");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchItems]);
-
-  // Delete multiple wardrobe items
-  const deleteItems = useCallback(async (itemIds: string[]) => {
-    if (!user) return;
-    try {
-      setIsLoading(true);
-      setError(null);
-      await deleteMultipleWardrobeItems(user.uid, itemIds);
-      await fetchItems();
-    } catch (err) {
-      setError("Failed to delete items");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, fetchItems]);
-
-  // Process and add multiple images
-  const processImages = useCallback(async (files: File[]) => {
-    if (!user) return;
-
-    try {
-      setProcessingImages(true);
-      setError(null);
-      const response = await processAndAddImages(user.uid, files);
-      if (response.success && response.data) {
-        await fetchItems();
-        return response;
-      } else {
-        throw new Error(response.error || 'Failed to process images');
-      }
-    } catch (err) {
-      setError("Failed to process images");
-      console.error(err);
-      throw err;
-    } finally {
-      setProcessingImages(false);
-    }
-  }, [user, fetchItems]);
-
-  // Fetch items on mount and when auth state changes
+  // Load wardrobe when component mounts and when user changes
   useEffect(() => {
-    if (!authLoading) {
-      fetchItems();
+    console.log('useWardrobe effect triggered:', {
+      user: user?.uid,
+      authLoading: !user,
+      isAuthenticated: !!user?.uid
+    });
+    if (!user) {
+      console.log('No user, clearing wardrobe');
+      setWardrobe([]);
+      return;
     }
-  }, [fetchItems, authLoading]);
+    if (!user.uid) {
+      console.log('Auth is still loading, waiting...');
+      return;
+    }
+    console.log('Loading wardrobe for user:', user.uid);
+    loadItems();
+  }, [loadItems, user]);
+
+  const addItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+    if (!user?.uid) {
+      return { success: false, error: 'User not authenticated', data: null };
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await addWardrobeItem(item);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to add item');
+      }
+      if (!result.data) {
+        throw new Error('No data returned from addWardrobeItem');
+      }
+      setWardrobe(prev => [...prev, result.data].filter(Boolean) as WardrobeItem[]);
+      return { success: true, data: result.data };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Failed to add item';
+      setError(error);
+      return { success: false, error, data: null };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const updateItem = useCallback(async (itemId: string, updates: Partial<ClothingItem>) => {
+    if (!user?.uid) {
+      return { success: false, error: 'User not authenticated', data: null };
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await updateWardrobeItem(itemId, updates);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update item');
+      }
+      if (!result.data) {
+        throw new Error('No data returned from updateWardrobeItem');
+      }
+      const updatedItem = result.data;
+      setWardrobe(prev => prev.map(item => item.id === itemId ? updatedItem : item).filter(Boolean) as WardrobeItem[]);
+      return { success: true, data: updatedItem };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Failed to update item';
+      setError(error);
+      return { success: false, error, data: null };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const removeItem = useCallback(async (itemId: string): Promise<ApiResponse<void>> => {
+    if (!user?.uid) {
+      return { success: false, error: 'User not authenticated', data: null };
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await deleteWardrobeItem(itemId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to remove item');
+      }
+      setWardrobe(prev => prev.filter(item => item.id !== itemId));
+      return { success: true, data: null };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Failed to remove item';
+      setError(error);
+      return { success: false, error, data: null };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const getItemsByType = useCallback(async (type: string) => {
+    if (!user?.uid) return [];
+    setLoading(true);
+    setError(null);
+    try {
+      const typeItems = await getWardrobeItemsByType(user.uid, type);
+      // Validate all items against the schema
+      return validateClothingItems(typeItems);
+    } catch (err) {
+      console.error('Error getting items by type:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get items by type');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const getItemsBySeason = useCallback(async (season: string) => {
+    if (!user?.uid) return [];
+    setLoading(true);
+    setError(null);
+    try {
+      const seasonItems = await getWardrobeItemsBySeason(user.uid, season);
+      // Validate all items against the schema
+      return validateClothingItems(seasonItems);
+    } catch (err) {
+      console.error('Error getting items by season:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get items by season');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const processImages = useCallback(async (files: File[]): Promise<ClothingItem[]> => {
+    if (!user?.uid) {
+      throw new Error('User not authenticated');
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await processAndAddImages({
+        userId: user.uid,
+        files,
+        onProgress: (progress) => {
+          console.log(`Processing progress: ${progress}%`);
+        }
+      });
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to process images');
+      }
+      const newItems = result.data.newItems;
+      if (newItems.length > 0) {
+        setWardrobe(prev => {
+          const currentItems = Array.isArray(prev) ? prev : [];
+          return [...currentItems, ...newItems] as WardrobeItem[];
+        });
+      }
+      return newItems;
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Failed to process images';
+      setError(error);
+      throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   return {
-    items,
-    isLoading: isLoading || authLoading,
+    wardrobe,
+    loading,
     error,
-    processingImages,
+    loadItems,
     addItem,
     updateItem,
-    deleteItem,
-    deleteItems,
-    getItem,
-    processImages,
-    refreshItems: fetchItems,
+    removeItem,
+    getItemsByType,
+    getItemsBySeason,
+    processImages
   };
 } 

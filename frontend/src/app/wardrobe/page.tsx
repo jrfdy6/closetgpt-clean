@@ -1,512 +1,437 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Search, Shirt, Pencil, Trash, Filter, Upload, Check, AlertCircle } from "lucide-react";
-import { useWardrobe } from "@/hooks/useWardrobe";
-import type { ClothingItem } from "@/lib/utils/outfitGenerator";
-
-// Filter options
-const CLOTHING_TYPES = [
-  "All",
-  "Top",
-  "Bottom",
-  "Dress",
-  "Outerwear",
-  "Shoes",
-  "Accessories",
-];
-
-const SORT_OPTIONS = [
-  { value: "name-asc", label: "Name A-Z" },
-  { value: "name-desc", label: "Name Z-A" },
-  { value: "type-asc", label: "Type A-Z" },
-  { value: "type-desc", label: "Type Z-A" },
-  { value: "date-desc", label: "Newest First" },
-  { value: "date-asc", label: "Oldest First" },
-];
-
-const SEASONS = ["Spring", "Summer", "Fall", "Winter"];
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useWardrobe } from '@/lib/hooks/useWardrobe';
+import { ClothingItem } from '@/types/wardrobe';
+import { useToast } from '@/components/ui/use-toast';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { migrateWardrobeItems } from '@/lib/firebase/wardrobeService';
+import { UpdateWardrobeNames } from '@/components/UpdateWardrobeNames';
+import Image from 'next/image';
+import { ref, getDownloadURL, deleteObject } from 'firebase/storage';
+import { storage } from '@/lib/firebase/config';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 export default function WardrobePage() {
-  const router = useRouter();
-  const {
-    items,
-    isLoading,
-    error,
-    deleteItem,
-  } = useWardrobe();
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedType, setSelectedType] = useState("All");
-  const [sortBy, setSortBy] = useState("date-desc");
-  const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const { items, loading, error, loadItems } = useWardrobe();
+  const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  const [imageLoadAttempts, setImageLoadAttempts] = useState<Record<string, number>>({});
   const [itemToDelete, setItemToDelete] = useState<ClothingItem | null>(null);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const MAX_RETRIES = 3;
+  const [newTag, setNewTag] = useState<string>('');
+  const [itemTags, setItemTags] = useState<Record<string, string[]>>({});
 
-  // Filter and sort items
-  const filteredItems = items
-    .filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesType =
-        selectedType === "All" || item.type === selectedType;
-      const matchesSeasons =
-        selectedSeasons.length === 0 ||
-        item.season.some((s) => selectedSeasons.includes(s));
-      return matchesSearch && matchesType && matchesSeasons;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "name-asc":
-          return a.name.localeCompare(b.name);
-        case "name-desc":
-          return b.name.localeCompare(a.name);
-        case "type-asc":
-          return a.type.localeCompare(b.type);
-        case "type-desc":
-          return b.type.localeCompare(a.type);
-        case "date-desc":
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case "date-asc":
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        default:
-          return 0;
-      }
+  useEffect(() => {
+    console.log('WardrobePage state:', {
+      authLoading,
+      loading,
+      user: user?.uid,
+      itemsCount: items?.length,
+      error
+    });
+  }, [authLoading, loading, user, items, error]);
+
+  const handleMigrate = async () => {
+    if (!user) return;
+
+    setIsMigrating(true);
+    try {
+      await migrateWardrobeItems(user.uid);
+      await loadItems();
+      toast({
+        title: 'Success',
+        description: 'Wardrobe items have been updated to the new schema.',
+      });
+    } catch (err) {
+      console.error('Error migrating wardrobe items:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update wardrobe items. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const handleImageError = (itemId: string, itemName: string, e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    const currentRetries = retryCount[itemId] || 0;
+    
+    console.log(`Image load error for ${itemName}:`, {
+      itemId,
+      currentSource: target.src,
+      naturalWidth: target.naturalWidth,
+      naturalHeight: target.naturalHeight,
+      retryCount: currentRetries,
+      timestamp: new Date().toISOString()
     });
 
-  const handleSeasonToggle = (season: string) => {
-    setSelectedSeasons((prev) =>
-      prev.includes(season)
-        ? prev.filter((s) => s !== season)
-        : [...prev, season]
-    );
-  };
-
-  const handleDelete = async (item: ClothingItem) => {
-    setItemToDelete(item);
-  };
-
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
-
-    try {
-      setIsDeleting(true);
-      await deleteItem(itemToDelete.id);
-      setItemToDelete(null);
-    } catch (err) {
-      console.error("Error deleting item:", err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedItems.size === 0) return;
-
-    try {
-      setIsDeleting(true);
-      await deleteItems(Array.from(selectedItems));
-      setSelectedItems(new Set());
-    } catch (err) {
-      console.error("Error deleting items:", err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const toggleItemSelection = (itemId: string) => {
-    setSelectedItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
+    if (currentRetries < MAX_RETRIES) {
+      // Increment retry count
+      setRetryCount(prev => ({ ...prev, [itemId]: currentRetries + 1 }));
+      // Clear the error state to trigger a retry
+      setImageErrors(prev => ({ ...prev, [itemId]: false }));
+      
+      // Force a re-render of the image with a cache-busting parameter
+      const img = target as HTMLImageElement;
+      if (img.src && storage && user?.uid) {
+        try {
+          // Extract the path from the current image URL
+          const url = new URL(img.src);
+          const pathMatch = url.pathname.match(/\/o\/(.+?)(?:\?|$)/);
+          if (!pathMatch) {
+            throw new Error('Could not extract path from image URL');
+          }
+          const decodedPath = decodeURIComponent(pathMatch[1]);
+          
+          // Get a fresh download URL using the extracted path
+          const storageRef = ref(storage, decodedPath);
+          getDownloadURL(storageRef)
+            .then(newUrl => {
+              img.src = newUrl;
+            })
+            .catch(error => {
+              console.error('Error getting fresh download URL:', error);
+              setImageErrors(prev => ({ ...prev, [itemId]: true }));
+            });
+        } catch (error) {
+          console.error('Error creating storage reference:', error);
+          setImageErrors(prev => ({ ...prev, [itemId]: true }));
+        }
       } else {
-        next.add(itemId);
+        setImageErrors(prev => ({ ...prev, [itemId]: true }));
       }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedItems.size === filteredItems.length) {
-      setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(filteredItems.map((item) => item.id)));
+      // Max retries reached, show placeholder
+      setImageErrors(prev => ({ ...prev, [itemId]: true }));
     }
   };
 
-  if (isLoading) {
+  const handleDeleteItem = async (item: ClothingItem) => {
+    if (!user || !item.id || !storage || !db) return;
+    
+    setIsDeleting(true);
+    try {
+      // Delete the image from storage if it exists
+      if (item.imageUrl) {
+        try {
+          const url = new URL(item.imageUrl);
+          const pathMatch = url.pathname.match(/\/o\/(.+?)(?:\?|$)/);
+          if (pathMatch) {
+            const decodedPath = decodeURIComponent(pathMatch[1]);
+            const storageRef = ref(storage, decodedPath);
+            await deleteObject(storageRef);
+          }
+        } catch (error) {
+          console.error('Error deleting image from storage:', error);
+          // Continue with item deletion even if image deletion fails
+        }
+      }
+
+      // Delete the item from Firestore
+      await deleteDoc(doc(db, 'wardrobe', item.id));
+      
+      toast({
+        title: 'Success',
+        description: 'Item deleted successfully.',
+      });
+      
+      // Reload the wardrobe items
+      await loadItems();
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete item. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleAddTag = (itemId: string) => {
+    if (newTag && !itemTags[itemId]?.includes(newTag)) {
+      setItemTags(prev => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), newTag]
+      }));
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (itemId: string, tagToRemove: string) => {
+    setItemTags(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  const filteredItems = Array.isArray(items) ? items.filter(item => {
+    const searchLower = searchQuery.toLowerCase();
     return (
-      <div>
-        <div>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i}>
-              <div>Loading...</div>
-              <div>
-                <div>Loading...</div>
-                <div>Loading...</div>
-                <div>
-                  <div>Loading...</div>
-                  <div>Loading...</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      item.name.toLowerCase().includes(searchLower) ||
+      item.type.toLowerCase().includes(searchLower) ||
+      (item.subType?.toLowerCase().includes(searchLower) ?? false) ||
+      (item.color?.toLowerCase().includes(searchLower) ?? false) ||
+      (item.season?.some(s => s.toLowerCase().includes(searchLower)) ?? false)
     );
+  }) : [];
+
+  if (authLoading || loading) {
+    console.log('WardrobePage: Still loading...', { authLoading, loading });
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    console.log('WardrobePage: No user found');
+    return <div>Please sign in to view your wardrobe.</div>;
   }
 
   if (error) {
+    console.error('WardrobePage: Error state', error);
     return (
-      <div>
-        <div>
-          <AlertCircle />
-          <h3>Error</h3>
-          <p>{error}</p>
-        </div>
-        <div>
-          <button onClick={() => router.refresh()}>Try Again</button>
+      <div className="flex items-center justify-center p-4">
+        <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
+        <span className="text-red-500">{error}</span>
+      </div>
+    );
+  }
+
+  if (!items || items.length === 0) {
+    console.log('WardrobePage: No items found');
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">My Wardrobe</h1>
+        <div className="text-center p-8">
+          <p className="text-gray-600">Your wardrobe is empty. Add some items to get started!</p>
         </div>
       </div>
     );
   }
 
+  console.log('WardrobePage: Rendering items', { itemsCount: items.length });
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Wardrobe</h1>
-        <div className="flex gap-4">
-          <button 
-            onClick={() => router.push("/wardrobe/batch-upload")}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">My Wardrobe</h1>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => window.location.href = '/wardrobe/add'}
+            variant="default"
           >
-            <Upload className="h-5 w-5" />
-            Batch Upload
-          </button>
-          <button 
-            onClick={() => router.push("/wardrobe/add")}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-          >
-            <Plus className="h-5 w-5" />
             Add Item
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
+          </Button>
+          <Button
+            onClick={() => window.location.href = '/wardrobe/batch-upload'}
+            variant="outline"
           >
-            <Filter className="h-5 w-5" />
-            Filters
-          </button>
+            Batch Upload
+          </Button>
+          <Button
+            onClick={handleMigrate}
+            disabled={isMigrating}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isMigrating ? 'animate-spin' : ''}`} />
+            {isMigrating ? 'Updating...' : 'Update Schema'}
+          </Button>
         </div>
-
-        {showFilters && (
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Check className="h-5 w-5 text-green-500" />
-                <span className="font-medium">Active Filters</span>
-              </div>
-              <button 
-                onClick={() => setSelectedType("All")}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                Clear All
-              </button>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Type</label>
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                >
-                  {CLOTHING_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Seasons</label>
-                <div className="flex flex-wrap gap-2">
-                  {SEASONS.map((season) => (
-                    <button
-                      key={season}
-                      onClick={() => handleSeasonToggle(season)}
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        selectedSeasons.includes(season)
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      {season}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
-              <div className="relative aspect-square">
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 opacity-0 transition-all group-hover:bg-opacity-40 group-hover:opacity-100">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => router.push(`/wardrobe/edit/${item.id}`)}
-                      className="rounded-full bg-white p-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(item)}
-                      className="rounded-full bg-white p-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      <Trash className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="absolute right-2 top-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedItems.has(item.id)}
-                    onChange={() => toggleItemSelection(item.id)}
-                    className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="mb-1 font-medium">{item.name}</h3>
-                <div className="flex flex-col gap-2 text-sm text-gray-600">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">Type</p>
-                    <div className="flex items-center gap-2">
-                      <p>{item.type}</p>
-                      {item.subType && (
-                        <span className="text-xs text-gray-500">({item.subType})</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {item.dominantColors && item.dominantColors.length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Colors</p>
-                      <div className="flex items-center gap-2">
-                        {item.dominantColors.map((color, index) => (
-                          <div key={index} className="flex items-center gap-1">
-                            <div 
-                              className="h-4 w-4 rounded-full border border-gray-200" 
-                              style={{ backgroundColor: color.hex }}
-                            />
-                            <span className="text-xs">{color.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {item.matchingColors && item.matchingColors.length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Matching Colors</p>
-                      <div className="flex items-center gap-2">
-                        {item.matchingColors.map((color, index) => (
-                          <div key={index} className="flex items-center gap-1">
-                            <div 
-                              className="h-4 w-4 rounded-full border border-gray-200" 
-                              style={{ backgroundColor: color.hex }}
-                            />
-                            <span className="text-xs">{color.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {item.material && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Material</p>
-                      <p>{item.material}</p>
-                    </div>
-                  )}
-
-                  {item.brand && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Brand</p>
-                      <p>{item.brand}</p>
-                    </div>
-                  )}
-
-                  {item.style && item.style.length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Style</p>
-                      <div className="flex gap-1">
-                        {item.style.map((style) => (
-                          <span 
-                            key={style}
-                            className="rounded-full bg-gray-100 px-2 py-0.5 text-xs"
-                          >
-                            {style}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {item.occasion && item.occasion.length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Occasion</p>
-                      <div className="flex gap-1">
-                        {item.occasion.map((occasion) => (
-                          <span 
-                            key={occasion}
-                            className="rounded-full bg-gray-100 px-2 py-0.5 text-xs"
-                          >
-                            {occasion}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">Season</p>
-                    <div className="flex gap-1">
-                      {item.season.map((season) => (
-                        <span 
-                          key={season}
-                          className="rounded-full bg-gray-100 px-2 py-0.5 text-xs"
-                        >
-                          {season}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {item.tags && item.tags.length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Tags</p>
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags.map((tag) => (
-                          <span 
-                            key={tag}
-                            className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {item.metadata && Object.keys(item.metadata).length > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Additional Info</p>
-                      <div className="flex flex-wrap gap-1">
-                        {Object.entries(item.metadata).map(([key, value]) => (
-                          <span 
-                            key={key}
-                            className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600"
-                          >
-                            {key}: {String(value)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredItems.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-            <Shirt className="mb-4 h-12 w-12 text-gray-400" />
-            <h3 className="mb-2 text-xl font-medium">Your wardrobe is empty</h3>
-            <p className="mb-6 text-gray-600">
-              Start by adding some items to your wardrobe
-            </p>
-            <button 
-              onClick={() => router.push("/wardrobe/add")}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              <Plus className="h-5 w-5" />
-              Add Your First Item
-            </button>
-          </div>
-        )}
       </div>
 
-      {itemToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-xl font-medium">Delete Item</h3>
-            <p className="mb-6 text-gray-600">
-              Are you sure you want to delete this item? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-4">
-              <button 
-                onClick={() => setItemToDelete(null)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search your wardrobe..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
+      <div className="mb-4">
+        <UpdateWardrobeNames />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredItems.map((item) => (
+          <div key={item.id} className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow group">
+            <div className="relative w-full h-48 mb-2">
+              {item.imageUrl && !imageErrors[item.id] ? (
+                <Image
+                  src={item.imageUrl}
+                  alt={item.name || 'Clothing item'}
+                  fill
+                  className="object-cover rounded-lg"
+                  onError={(e) => handleImageError(item.id, item.name || 'Unnamed item', e)}
+                  unoptimized
+                  priority={false}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  loading="lazy"
+                  onLoad={() => {
+                    console.log(`Image loaded successfully for ${item.name || 'Unnamed item'}:`, {
+                      itemId: item.id,
+                      imageUrl: item.imageUrl,
+                      timestamp: new Date().toISOString()
+                    });
+                  }}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  quality={100}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                  <span className="text-gray-400">{item.name || 'Unnamed item'}</span>
+                </div>
+              )}
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => setItemToDelete(item)}
               >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmDelete} 
-                disabled={isDeleting}
-                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <h2 className="text-lg font-semibold">{item.name || 'Unnamed item'}</h2>
+            <div className="mt-2 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">{item.type}</Badge>
+                {item.subType && <Badge variant="outline">{item.subType}</Badge>}
+                {item.color && <Badge variant="outline">{item.color}</Badge>}
+                {item.season?.map(s => (
+                  <Badge key={s} variant="outline">{s}</Badge>
+                ))}
+              </div>
+              
+              {item.brand && (
+                <div className="text-sm text-gray-600">
+                  <p><span className="font-medium">Brand:</span> {item.brand}</p>
+                </div>
+              )}
+              
+              {item.metadata?.visualAttributes && (
+                <div className="text-sm text-gray-600">
+                  <p><span className="font-medium">Material:</span> {item.metadata.visualAttributes.material || 'Unknown'}</p>
+                  <p><span className="font-medium">Pattern:</span> {item.metadata.visualAttributes.pattern || 'Solid'}</p>
+                  <p><span className="font-medium">Fit:</span> {item.metadata.visualAttributes.fit || 'Regular'}</p>
+                  {item.metadata.visualAttributes.sleeveLength && (
+                    <p><span className="font-medium">Sleeve Length:</span> {item.metadata.visualAttributes.sleeveLength}</p>
+                  )}
+                  {item.metadata.visualAttributes.length && (
+                    <p><span className="font-medium">Length:</span> {item.metadata.visualAttributes.length}</p>
+                  )}
+                  {item.metadata.visualAttributes.formalLevel && (
+                    <p><span className="font-medium">Formality:</span> {item.metadata.visualAttributes.formalLevel}</p>
+                  )}
+                </div>
+              )}
+              
+              {item.style && item.style.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {item.style.map(style => (
+                    <Badge key={style} variant="secondary" className="text-xs">
+                      {style}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
+              {item.occasion && item.occasion.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {item.occasion.map(occasion => (
+                    <Badge key={occasion} variant="outline" className="text-xs">
+                      {occasion}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
+              {item.metadata?.itemMetadata?.careInstructions && (
+                <div className="text-sm text-gray-600 mt-2">
+                  <p><span className="font-medium">Care Instructions:</span> {item.metadata.itemMetadata.careInstructions}</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add a tag"
+                  className="border rounded p-1 text-sm"
+                />
+                <button
+                  onClick={() => handleAddTag(item.id)}
+                  className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
+                >
+                  Add Tag
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {itemTags[item.id]?.map(tag => (
+                  <Badge key={tag} variant="outline" className="text-xs">
+                    {tag}
+                    <button
+                      onClick={() => handleRemoveTag(item.id, tag)}
+                      className="ml-1 text-red-500"
+                    >
+                      <X size={12} />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this item? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => itemToDelete && handleDeleteItem(itemToDelete)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

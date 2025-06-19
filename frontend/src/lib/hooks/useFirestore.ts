@@ -11,13 +11,16 @@ import {
   DocumentData,
   Query,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../firebase/config";
 
 export function useFirestore(collectionName: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const addDocument = async (data: DocumentData) => {
+    if (!db) {
+      throw new Error("Firestore is not initialized");
+    }
     setLoading(true);
     setError(null);
 
@@ -37,6 +40,9 @@ export function useFirestore(collectionName: string) {
   };
 
   const updateDocument = async (id: string, data: DocumentData) => {
+    if (!db) {
+      throw new Error("Firestore is not initialized");
+    }
     setLoading(true);
     setError(null);
 
@@ -56,6 +62,9 @@ export function useFirestore(collectionName: string) {
   };
 
   const deleteDocument = async (id: string) => {
+    if (!db) {
+      throw new Error("Firestore is not initialized");
+    }
     setLoading(true);
     setError(null);
 
@@ -72,6 +81,9 @@ export function useFirestore(collectionName: string) {
   };
 
   const getDocuments = async (conditions: { field: string; operator: string; value: any }[] = []) => {
+    if (!db) {
+      throw new Error("Firestore is not initialized");
+    }
     setLoading(true);
     setError(null);
 

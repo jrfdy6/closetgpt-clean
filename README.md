@@ -19,26 +19,37 @@ ClosetGPT is an AI-powered personal stylist application that helps users manage 
   - shadcn/ui Components
   - Radix UI Primitives
 
-## Getting Started
+## Development Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/closetgpt.git
-   cd closetgpt
-   ```
+### Requirements
+- Python 3.11 (required for backend)
+- Node.js (for frontend)
 
-2. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
+### Port Configuration
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+### Getting Started
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+1. Backend Setup:
+```bash
+cd backend
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+pip install -r requirements.txt
+python run.py
+```
+
+2. Frontend Setup:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
 
 ## Project Structure
 

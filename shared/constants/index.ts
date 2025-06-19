@@ -52,8 +52,11 @@ export const MATERIALS = {
   FUR: 'fur',
 } as const;
 
-export const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   USER_PROFILE: 'user_profile',
   STYLE_PREFERENCES: 'style_preferences',
-} as const; 
+} as const;
+
+export type StorageKeys = typeof STORAGE_KEYS;
+export { STORAGE_KEYS }; 

@@ -1,7 +1,6 @@
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
-
-const storage = getStorage();
+import { storage } from "./config";
 
 export interface UploadedImage {
   url: string;

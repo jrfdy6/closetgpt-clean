@@ -3,6 +3,14 @@ from unidecode import unidecode
 import re
 from difflib import SequenceMatcher
 from ..types.wardrobe import ClothingType, ClothingItem
+import time
+import json
+import traceback
+import logging
+import uuid
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Maximum lengths for strings
 MAX_TYPE_LENGTH = 32
@@ -125,105 +133,174 @@ def find_closest_match(input_str: str, options: List[str], threshold: float = 0.
     
     return best_match
 
-def normalize_clothing_type(type_str: Optional[str], subtype_str: Optional[str] = None) -> ClothingType:
-    """Normalize a clothing type string to a canonical type."""
-    if not type_str:
+def normalize_clothing_type(item_type: str, sub_type: Optional[str] = None) -> ClothingType:
+    """
+    Normalize clothing type with special handling for shorts and shoes.
+    """
+    if not item_type:
+        logger.warning("Empty type string, defaulting to OTHER")
         return ClothingType.OTHER
-    
-    normalized = normalize_string(type_str)
-    if not normalized:
-        return ClothingType.OTHER
-    
-    # Check direct matches first
-    if normalized in TYPE_MAPPINGS:
-        return ClothingType(normalized)
-    
-    # Check all synonyms
-    for canonical_type, synonyms in TYPE_MAPPINGS.items():
-        if normalized in synonyms:
-            return ClothingType(canonical_type)
-    
-    # Check for compound types (e.g., "denim jacket" -> "jacket")
-    words = normalized.split()
-    for word in words:
-        if word in TYPE_MAPPINGS:
-            return ClothingType(word)
-        for canonical_type, synonyms in TYPE_MAPPINGS.items():
-            if word in synonyms:
-                return ClothingType(canonical_type)
-    
-    # If we have a subtype, try to use it to determine the type
-    if subtype_str:
-        normalized_subtype = normalize_string(subtype_str)
-        # Check if subtype is actually a type
-        if normalized_subtype in TYPE_MAPPINGS:
-            return ClothingType(normalized_subtype)
-        # Check if subtype is a synonym of a type
-        for canonical_type, synonyms in TYPE_MAPPINGS.items():
-            if normalized_subtype in synonyms:
-                return ClothingType(canonical_type)
-        # Check if subtype matches any known subtypes
-        for canonical_type, subtypes in SUBTYPE_MAPPINGS.items():
-            if normalized_subtype in subtypes:
-                return ClothingType(canonical_type)
-    
-    # Try fuzzy matching
-    all_options = list(TYPE_MAPPINGS.keys()) + [syn for syns in TYPE_MAPPINGS.values() for syn in syns]
-    match = find_closest_match(normalized, all_options)
-    
-    if match:
-        # Find the canonical type for the matched synonym
-        for canonical_type, synonyms in TYPE_MAPPINGS.items():
-            if match in synonyms:
-                return ClothingType(canonical_type)
-        # If match is a canonical type
-        if match in TYPE_MAPPINGS:
-            return ClothingType(match)
-    
-    return ClothingType.OTHER
 
-def normalize_subtype(type_str: Optional[str], subtype_str: Optional[str]) -> Optional[str]:
-    """Normalize a clothing subtype string."""
-    if not subtype_str:
+    # Convert to lowercase for case-insensitive matching
+    type_lower = item_type.lower()
+    sub_type_lower = sub_type.lower() if sub_type else None
+
+    # Special case for shorts - check both type and subtype
+    if (type_lower == "pants" and sub_type_lower == "shorts") or \
+       (type_lower == "shorts") or \
+       (sub_type_lower == "shorts"):
+        return ClothingType.SHORTS
+
+    # Special case for shoes - always return SHOES type regardless of subtype
+    if type_lower == "shoes" or type_lower == "boots" or type_lower == "sneakers" or type_lower == "sandals":
+        return ClothingType.SHOES
+
+    # Map common variations to standard types
+    type_mapping: Dict[str, ClothingType] = {
+        "shirt": ClothingType.SHIRT,
+        "t-shirt": ClothingType.SHIRT,
+        "tshirt": ClothingType.SHIRT,
+        "blouse": ClothingType.SHIRT,
+        "top": ClothingType.SHIRT,
+        "pants": ClothingType.PANTS,
+        "trousers": ClothingType.PANTS,
+        "jeans": ClothingType.PANTS,
+        "skirt": ClothingType.SKIRT,
+        "dress": ClothingType.DRESS,
+        "gown": ClothingType.DRESS,
+        "jacket": ClothingType.JACKET,
+        "coat": ClothingType.JACKET,
+        "blazer": ClothingType.JACKET,
+        "sweater": ClothingType.SWEATER,
+        "jumper": ClothingType.SWEATER,
+        "hoodie": ClothingType.SWEATER,
+        "accessory": ClothingType.ACCESSORY,
+        "jewelry": ClothingType.ACCESSORY,
+        "bag": ClothingType.ACCESSORY,
+        "hat": ClothingType.ACCESSORY,
+        "scarf": ClothingType.ACCESSORY,
+        "belt": ClothingType.ACCESSORY,
+        "other": ClothingType.OTHER
+    }
+
+    # Try to find a match in the mapping
+    for key, value in type_mapping.items():
+        if key in type_lower:
+            return value
+
+    # If no match found, try to match against enum values
+    try:
+        return ClothingType(type_lower)
+    except ValueError:
+        logger.warning(f"Could not normalize type '{item_type}', defaulting to OTHER")
+        return ClothingType.OTHER
+
+def normalize_subtype(sub_type: Optional[str]) -> Optional[str]:
+    """
+    Normalize clothing subtype.
+    """
+    if not sub_type:
         return None
-    
-    normalized = normalize_string(subtype_str)
-    if not normalized:
-        return None
-    
-    # If the subtype is actually a type, return None
-    if normalized in TYPE_MAPPINGS:
-        return None
-    
-    # Check if the subtype is a synonym of the main type
-    if type_str and type_str in TYPE_MAPPINGS and normalized in TYPE_MAPPINGS[type_str]:
-        return None
-    
-    # Check if the subtype matches any known subtypes for the given type
-    if type_str and type_str in SUBTYPE_MAPPINGS:
-        for known_subtype in SUBTYPE_MAPPINGS[type_str]:
-            if normalized == normalize_string(known_subtype):
-                return known_subtype
-    
-    # Try fuzzy matching with known subtypes
-    if type_str and type_str in SUBTYPE_MAPPINGS:
-        match = find_closest_match(normalized, SUBTYPE_MAPPINGS[type_str])
-        if match:
-            return match
-    
-    return normalized[:MAX_SUBTYPE_LENGTH]
+
+    # Remove special characters and normalize
+    normalized = ''.join(c for c in str(sub_type) if c.isalnum() or c.isspace() or c == '-')
+    return normalized.strip()
 
 def validate_clothing_item(item: Dict[str, Any]) -> ClothingItem:
-    """Validate and normalize a clothing item."""
-    # First normalize the type and subtype
-    normalized_item = {
-        **item,
-        "type": normalize_clothing_type(item.get("type"), item.get("subType")),
-        "subType": normalize_subtype(item.get("type"), item.get("subType"))
-    }
+    """
+    Validate and normalize a clothing item.
+    """
+    # Normalize type and subtype
+    item_type = normalize_clothing_type(item.get('type', ''), item.get('subType'))
+    sub_type = normalize_subtype(item.get('subType'))
+
+    # Update the item with normalized values
+    item['type'] = item_type
+    item['subType'] = sub_type
+
+    # Create and validate ClothingItem
+    try:
+        return ClothingItem(**item)
+    except Exception as e:
+        logger.error(f"Error validating clothing item: {str(e)}")
+        raise ValueError(f"Invalid clothing item: {str(e)}")
+
+def validate_outfit_requirements(outfit: ClothingItem) -> bool:
+    """
+    Validate that an outfit meets all requirements.
+    """
+    # Check for required pieces
+    has_top = any(item.type in [ClothingType.SHIRT, ClothingType.SWEATER, ClothingType.JACKET, ClothingType.DRESS] for item in outfit.items)
+    has_bottom = any(item.type in [ClothingType.PANTS, ClothingType.SHORTS, ClothingType.SKIRT] for item in outfit.items)
+    has_mixed_bottoms = any(item.type == ClothingType.PANTS for item in outfit.items) and any(item.type == ClothingType.SHORTS for item in outfit.items)
+
+    # Get style and season from metadata
+    style = outfit.metadata.get('style', '').lower() if outfit.metadata else ''
+    season = outfit.metadata.get('season', '').lower() if outfit.metadata else ''
+    occasion = outfit.metadata.get('occasion', '').lower() if outfit.metadata else ''
     
-    # Then validate using Pydantic model
-    return ClothingItem(**normalized_item)
+    # Special handling for vacation outfits
+    if occasion == 'vacation':
+        # Vacation outfits can be more flexible
+        if not (has_top or has_bottom):  # Allow single-piece outfits like dresses
+            logger.warning("Vacation outfit should have at least one piece")
+            return False
+        
+        # Allow mixing of casual pieces
+        if has_mixed_bottoms:
+            logger.info("Vacation outfit can mix pants and shorts")
+            return True
+        
+        # Vacation-specific piece count
+        piece_count = len(outfit.items)
+        if piece_count < 1 or piece_count > 5:  # More flexible piece count for vacation
+            logger.warning(f"Vacation outfit should have 1-5 pieces, got {piece_count}")
+            return False
+        
+        return True
+
+    # Regular outfit validation
+    if not has_top:
+        logger.warning("Outfit missing a top (shirt, sweater, jacket, or dress)")
+        return False
+
+    if not has_bottom:
+        logger.warning("Outfit missing pants, shorts, or skirt")
+        return False
+
+    if has_mixed_bottoms:
+        logger.warning("Outfit cannot mix pants and shorts")
+        return False
+
+    # Define piece count ranges based on style and season
+    piece_count = len(outfit.items)
+    min_pieces = 2
+    max_pieces = 6
+    
+    # Adjust for summer styles
+    if season == 'summer' or 'summer' in style:
+        min_pieces = 2
+        max_pieces = 4
+    
+    # Adjust for winter styles
+    if season == 'winter' or 'winter' in style:
+        min_pieces = 3
+        max_pieces = 6
+    
+    # Adjust for specific styles
+    if 'minimalist' in style:
+        min_pieces = 2
+        max_pieces = 4
+    elif 'layered' in style:
+        min_pieces = 4
+        max_pieces = 6
+    
+    # Check piece count
+    if piece_count < min_pieces or piece_count > max_pieces:
+        logger.warning(f"Outfit must have {min_pieces}-{max_pieces} pieces for {style} style in {season} season, got {piece_count}")
+        return False
+
+    return True
 
 def is_clothing_item(item: Any) -> bool:
     """Type guard to check if an object is a valid clothing item."""

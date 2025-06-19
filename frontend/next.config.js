@@ -1,10 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   experimental: {
+    forceSwcTransforms: false,
     serverActions: {
       allowedOrigins: ['localhost:3000'],
     },
+  },
+  images: {
+    domains: ['api.dicebear.com', 'firebasestorage.googleapis.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+        pathname: '/**',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {

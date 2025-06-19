@@ -6,15 +6,40 @@ import {
   OpenAIClothingAnalysisSchema,
   ApiResponse,
   AppError
-} from './types';
+} from '../frontend/src/types/wardrobe';
 
 // Validation functions
 export const validateClothingItem = (data: unknown): ClothingItem => {
   return ClothingItemSchema.parse(data);
 };
 
-export const validateOpenAIAnalysis = (data: unknown): OpenAIClothingAnalysis => {
-  return OpenAIClothingAnalysisSchema.parse(data);
+export const validateClothingItems = (data: unknown): ClothingItem[] => {
+  if (!Array.isArray(data)) {
+    throw new Error("Expected an array of clothing items");
+  }
+  return data.map(item => validateClothingItem(item));
+};
+
+export const validateApiResponse = <T>(response: unknown): ApiResponse<T> => {
+  if (typeof response !== "object" || response === null) {
+    throw new Error("Invalid API response: expected an object");
+  }
+
+  const { success, data, error } = response as ApiResponse<T>;
+  
+  if (typeof success !== "boolean") {
+    throw new Error("Invalid API response: success must be a boolean");
+  }
+
+  if (success && data === undefined) {
+    throw new Error("Invalid API response: data is required when success is true");
+  }
+
+  if (!success && error === undefined) {
+    throw new Error("Invalid API response: error is required when success is false");
+  }
+
+  return response as ApiResponse<T>;
 };
 
 // API response helpers
@@ -23,7 +48,7 @@ export const createSuccessResponse = <T>(data: T): ApiResponse<T> => ({
   data
 });
 
-export const createErrorResponse = (error: string): ApiResponse<never> => ({
+export const createErrorResponse = <T>(error: string): ApiResponse<T> => ({
   success: false,
   error
 });
@@ -44,17 +69,21 @@ export const convertOpenAIAnalysisToClothingItem = (
   const now = Date.now();
   return {
     userId,
+    name: `${analysis.type}${analysis.subType ? ` - ${analysis.subType}` : ''}`,
     type: analysis.type as ClothingItem['type'],
-    subType: analysis.subType,
+    color: analysis.dominantColors[0]?.name || 'unknown',
+    season: analysis.season,
+    imageUrl,
+    tags: analysis.style,
+    style: analysis.style,
     dominantColors: analysis.dominantColors,
     matchingColors: analysis.matchingColors,
-    style: analysis.style,
-    brand: analysis.brand,
-    season: analysis.season,
     occasion: analysis.occasion,
-    imageUrl,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    subType: analysis.subType,
+    brand: analysis.brand,
+    colorName: analysis.dominantColors[0]?.name
   };
 };
 

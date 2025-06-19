@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
 
 // Firebase collections
 export const FIREBASE_COLLECTIONS = {
+  WARDROBE: 'wardrobe',
   CLOTHING: 'clothing',
   OUTFITS: 'outfits',
   FEEDBACK: 'feedback',
