@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useWardrobe } from '@/hooks/useWardrobe';
-import { useProfile } from '@/hooks/useProfile';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { WardrobeItem, Season } from '@/types/wardrobe';
 
 interface StyleGoal {
@@ -14,7 +14,7 @@ interface StyleGoal {
 
 export default function StyleGoalsProgress() {
   const { wardrobe } = useWardrobe();
-  const { profile } = useProfile();
+  const { profile } = useUserProfile();
   const [goals, setGoals] = useState<StyleGoal[]>([]);
 
   useEffect(() => {
