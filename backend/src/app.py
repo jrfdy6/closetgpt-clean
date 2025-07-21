@@ -78,7 +78,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    return {"message": "ClosetGPT API is running"}
+    return {"message": "ClosetGPT API is running", "status": "healthy"}
 
 @app.get("/api/health")
 async def api_health():
