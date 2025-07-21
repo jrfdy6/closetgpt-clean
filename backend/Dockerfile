@@ -53,15 +53,16 @@ COPY src/ ./src/
 COPY firebase/ ./firebase/
 COPY firebase.json .
 COPY cors.json .
-
-# Change to src directory for running the app
-WORKDIR /app/src
+COPY start.sh .
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data
 
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app
+
+# Make startup script executable
+RUN chmod +x start.sh
 
 # Switch to non-root user
 USER appuser
@@ -70,4 +71,4 @@ USER appuser
 EXPOSE 3001
 
 # Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3001"] 
+CMD ["./start.sh"] 
