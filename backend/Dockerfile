@@ -53,12 +53,16 @@ COPY src/ ./src/
 COPY firebase/ ./firebase/
 COPY firebase.json .
 COPY cors.json .
+COPY start.sh .
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data
 
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app
+
+# Make startup script executable
+RUN chmod +x start.sh
 
 # Switch to non-root user
 USER appuser
@@ -71,4 +75,4 @@ EXPOSE 8000
 #     CMD curl -f http://localhost:3001/health || exit 1
 
 # Run the application
-CMD python -m uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 
+CMD ["./start.sh"] 
