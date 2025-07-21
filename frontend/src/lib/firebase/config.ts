@@ -13,10 +13,35 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase only on the client side
-const app = typeof window !== 'undefined' ? (!getApps().length ? initializeApp(firebaseConfig) : getApp()) : undefined;
-const db = typeof window !== 'undefined' && app ? getFirestore(app) : undefined;
-const storage = typeof window !== 'undefined' && app ? getStorage(app) : undefined;
-const auth = typeof window !== 'undefined' && app ? getAuth(app) : undefined;
+// Initialize Firebase only on the client side and only if config is valid
+let app: any = undefined;
+let db: any = undefined;
+let storage: any = undefined;
+let auth: any = undefined;
+
+if (typeof window !== 'undefined' && firebaseConfig.apiKey) {
+  try {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = getFirestore(app);
+    storage = getStorage(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+  }
+}
+
+// Debug function for Firebase auth
+export const debugAuth = () => {
+  if (typeof window !== 'undefined') {
+    console.log('🔍 Firebase Auth Debug Info:');
+    console.log('  - Auth object exists:', !!auth);
+    console.log('  - Current user:', auth?.currentUser);
+    console.log('  - Auth config:', {
+      apiKey: !!firebaseConfig.apiKey,
+      authDomain: !!firebaseConfig.authDomain,
+      projectId: !!firebaseConfig.projectId
+    });
+  }
+};
 
 export { app, db, storage, auth }; 

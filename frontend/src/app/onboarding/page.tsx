@@ -4,183 +4,192 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/lib/firebase-context';
 import { useOnboardingStore } from '@/lib/store/onboardingStore';
-import { ProfileSetupStep } from '@/components/onboarding/ProfileSetupStep';
-import { BasicInfoStep } from '@/components/onboarding/BasicInfoStep';
-import { StyleQuizStep } from '@/components/onboarding/StyleQuizStep';
-import { StylePreferencesStep } from '@/components/onboarding/StylePreferencesStep';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { StepWizard } from '@/components/onboarding/StepWizard';
+import { StepEmailInput } from '@/components/onboarding/steps/StepEmailInput';
+import { StepHeightWeightStepper } from '@/components/onboarding/steps/StepHeightWeightStepper';
+import { StepBodyTypeSelector } from '@/components/onboarding/steps/StepBodyTypeSelector';
+import { StepSizePicker } from '@/components/onboarding/steps/StepSizePicker';
+import { StepFitPreferences } from '@/components/onboarding/steps/StepFitPreferences';
+import { StepSkinToneSelector } from '@/components/onboarding/steps/StepSkinToneSelector';
+import { StepOutfitStyleQuiz } from '@/components/onboarding/steps/StepOutfitStyleQuiz';
 import { useToast } from '@/components/ui/use-toast';
+import { StepStyleClusters } from '@/components/onboarding/steps/StepStyleClusters';
+import { StepGenderSelect } from '@/components/onboarding/steps/StepGenderSelect';
+import { useOnboarding } from '@/lib/hooks/useOnboarding';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Sparkles } from 'lucide-react';
+import { PageLoadingSkeleton } from '@/components/ui/loading-states';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useFirebase();
+  const { user, loading } = useFirebase();
   const { toast } = useToast();
-  const { 
-    step, 
-    setStep, 
-    resetOnboarding, 
-    setBasicInfo, 
-    setStylePreferences,
-    name,
-    gender,
-    avatarUrl,
-    height,
-    weight,
-    bodyType,
-    skinTone,
-    fitPreference,
-    stylePreferences,
-    occasions,
-    preferredColors,
-    sizePreference,
-    formality,
-    seasonality
-  } = useOnboardingStore();
+  const { step, setStep, setBasicInfo } = useOnboardingStore();
+  const { saveOnboardingData } = useOnboarding();
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to initialize
+    if (loading) return;
 
     if (!user) {
-      router.push('/login');
+              router.push('/signin');
       return;
     }
 
-    // Check if user has an existing profile
-    const checkExistingProfile = async () => {
-      if (!db) return;
-      
-      try {
-        const profileDoc = await getDoc(doc(db, 'profiles', user.uid));
-        if (profileDoc.exists()) {
-          const profileData = profileDoc.data();
-          // Pre-fill the form with existing data
-          setBasicInfo({
-            name: profileData.name,
-            height: profileData.height,
-            weight: profileData.weight,
-            bodyType: profileData.bodyType,
-            skinTone: profileData.skinTone,
-            gender: profileData.gender,
-            avatarUrl: profileData.avatarUrl,
-            fitPreference: profileData.fitPreference,
-          });
-          setStylePreferences({
-            stylePreferences: profileData.stylePreferences,
-            occasions: profileData.occasions,
-            preferredColors: profileData.preferredColors,
-            formality: profileData.formality,
-            seasonality: profileData.seasonality,
-            sizePreference: profileData.sizePreference,
-          });
-        }
-      } catch (error) {
-        console.error('Error checking existing profile:', error);
-      }
-    };
+    // Pre-populate store with authenticated user data
+    if (user.email && user.displayName) {
+      setBasicInfo({
+        name: user.displayName || '',
+        email: user.email || '',
+      });
+    }
 
-    checkExistingProfile();
-  }, [user, authLoading, router, setBasicInfo, setStylePreferences]);
+    // Check if user has already completed onboarding
+    // This would typically check a user document in Firestore
+    // For now, we'll just proceed with onboarding
+  }, [user, loading, router, setBasicInfo]);
 
   const handleComplete = async () => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    if (step < 4) {
-      setStep(step + 1);
-    } else {
-      try {
-        const token = await user.getIdToken();
-        const response = await fetch('/api/profile/save', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            user_id: user.uid,
-            name,
-            gender,
-            avatarUrl,
-            height,
-            weight,
-            bodyType,
-            skinTone,
-            fitPreference,
-            stylePreferences,
-            occasions,
-            preferredColors,
-            sizePreference,
-            formality,
-            seasonality
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save profile');
-        }
-
-        toast({
-          title: "Success!",
-          description: "Profile updated successfully!",
-        });
-
-        // Use replace instead of push to prevent back navigation
-        router.replace('/profile');
-      } catch (error) {
-        console.error('Error saving profile:', error);
-        toast({
-          title: "Error",
-          description: "Failed to save profile. Please try again.",
-          variant: "destructive",
-        });
-      }
+    try {
+      // Save all onboarding data to Firebase using the useOnboarding hook
+      await saveOnboardingData();
+      
+      toast({
+        title: "Onboarding completed!",
+        description: "Your profile has been saved successfully.",
+      });
+      
+      // Redirect to dashboard (this is handled by saveOnboardingData)
+    } catch (error) {
+      console.error('Error saving onboarding data:', error);
+      toast({
+        title: "Error saving profile",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  if (authLoading) {
+  // Define steps conditionally based on authentication
+  const baseSteps = [
+    {
+      id: "gender",
+      title: "Gender",
+      component: StepGenderSelect,
+      description: "How do you identify?"
+    },
+    {
+      id: "height-weight",
+      title: "Height & Weight",
+      component: StepHeightWeightStepper,
+      description: "Help us understand your proportions"
+    },
+    {
+      id: "body-type",
+      title: "Body Type",
+      component: StepBodyTypeSelector,
+      description: "Select your body type"
+    },
+    {
+      id: "size-picker",
+      title: "Size Picker",
+      component: StepSizePicker,
+      description: "What sizes do you typically wear?"
+    },
+    {
+      id: "fit-preferences",
+      title: "Fit Preferences",
+      component: StepFitPreferences,
+      description: "How do you like your clothes to fit?"
+    },
+    {
+      id: "skin-tone",
+      title: "Skin Tone",
+      component: StepSkinToneSelector,
+      description: "Choose your skin tone"
+    },
+    {
+      id: "style-clusters",
+      title: "Style Clusters",
+      component: StepStyleClusters,
+      description: "Discover your style by selecting the clusters that resonate with you."
+    },
+    {
+      id: "outfit-style-quiz",
+      title: "Outfit Style Quiz",
+      component: StepOutfitStyleQuiz,
+      description: "Refine your style by selecting the outfits that resonate with you."
+    }
+  ];
+
+  // Add email step only for non-authenticated users
+  const steps = user && user.email ? baseSteps : [
+    {
+      id: "gender",
+      title: "Gender",
+      component: StepGenderSelect,
+      description: "How do you identify?"
+    },
+    {
+      id: "email",
+      title: "Email",
+      component: StepEmailInput,
+      description: "Let&apos;s stay connected"
+    },
+    ...baseSteps.slice(1) // Include all other steps
+  ];
+
+  // Simple bounds checking - ensure step is within valid range
+  const currentStepIndex = Math.max(0, Math.min((step || 1) - 1, steps.length - 1));
+
+  const handleStepChange = (newStepIndex: number) => {
+    // Ensure the new step index is within bounds
+    const boundedStepIndex = Math.max(0, Math.min(newStepIndex, steps.length - 1));
+    setStep(boundedStepIndex + 1);
+  };
+
+  // Show loading state while store is initializing
+  if (loading || !user) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          </div>
+      <div className="min-h-screen gradient-app-bg">
+        <div className="container-readable py-8">
+          <PageLoadingSkeleton 
+            showHero={true}
+            showStats={false}
+            showContent={false}
+          />
         </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">
-          {step === 1 ? 'Create Your Profile' : 'Update Your Style Profile'}
-        </h1>
-        <p className="text-gray-600 mb-8">
-          {step === 1 
-            ? 'Let\'s get to know you better to create your perfect style profile.'
-            : 'Let\'s update your style preferences to keep your recommendations fresh.'}
-        </p>
+    <div className="min-h-screen gradient-app-bg">
+      <div className="container-readable py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Hero Header */}
+          <div className="gradient-hero rounded-2xl p-6 sm:p-8 mb-6 sm:mb-8 text-center">
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 via-yellow-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+            </div>
+            <h1 className="text-2xl sm:text-hero text-foreground mb-4">
+              Welcome to Your Style Journey
+            </h1>
+            <p className="text-secondary text-base sm:text-lg">
+              Let's create your personalized style profile in just a few minutes
+            </p>
+          </div>
 
-        <div className="space-y-8">
-          {step === 1 && (
-            <ProfileSetupStep onComplete={handleComplete} />
-          )}
-          {step === 2 && (
-            <BasicInfoStep onComplete={handleComplete} />
-          )}
-          {step === 3 && (
-            <StyleQuizStep onComplete={handleComplete} />
-          )}
-          {step === 4 && (
-            <StylePreferencesStep onComplete={handleComplete} />
-          )}
+          <StepWizard
+            steps={steps}
+            currentStepIndex={currentStepIndex}
+            onStepChange={handleStepChange}
+            onComplete={handleComplete}
+            showProgress={true}
+            showNavigation={true}
+          />
         </div>
       </div>
     </div>

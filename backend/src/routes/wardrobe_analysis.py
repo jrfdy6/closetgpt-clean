@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from ..services.wardrobe_analysis_service import WardrobeAnalysisService
 from ..auth.auth_service import get_current_user_optional
-from ..types.profile import UserProfile
+from ..custom_types.profile import UserProfile
+from datetime import datetime
 
 router = APIRouter(prefix="/api/wardrobe", tags=["wardrobe-analysis"])
 
 @router.get("/gaps")
-async def get_wardrobe_gaps(current_user: UserProfile = Depends(get_current_user_optional)) -> Dict[str, Any]:
+async def get_wardrobe_gaps(gender: str = None, current_user: UserProfile = Depends(get_current_user_optional)) -> Dict[str, Any]:
     """
     Get comprehensive wardrobe gap analysis for the current user.
     
@@ -18,14 +19,48 @@ async def get_wardrobe_gaps(current_user: UserProfile = Depends(get_current_user
     - Validation error patterns
     - Outfit generation failures
     
+    Parameters:
+    - gender: Optional gender filter ("male", "female", or None for unisex/all)
+    
     Returns detailed analysis with prioritized recommendations.
     """
     try:
+        print(f"🔍 Gaps Backend: Received gender parameter: {gender}")
+        print(f"🔍 Gaps Backend: Current user: {current_user.id if current_user else 'None'}")
+        print(f"🔍 Gaps Backend: Current user gender: {current_user.gender if current_user else 'None'}")
+        
         if not current_user:
             raise HTTPException(status_code=400, detail="User not found")
+        
+        # Use user's gender if not specified
+        if not gender and current_user.gender:
+            gender = current_user.gender
+            print(f"🎯 Gaps Backend: Using user's gender from profile: {gender}")
+        
+        print(f"🎯 Gaps Backend: Final gender filter: {gender}")
             
         analysis_service = WardrobeAnalysisService()
         analysis = await analysis_service.get_wardrobe_gaps(current_user.id)
+        
+        # Try to get real trends directly with gender filtering
+        try:
+            from src.services.fashion_trends_service import FashionTrendsService
+            trends_service = FashionTrendsService()
+            print(f"🔍 Gaps Backend: Calling trends service with gender: {gender}")
+            real_trends = await trends_service.get_trending_styles(gender)
+            
+            if real_trends and len(real_trends) > 0:
+                print(f"✅ Gaps Backend: Successfully retrieved {len(real_trends)} real trends for gender: {gender or 'unisex'}")
+                # Check if ballet flats are in the results
+                ballet_flats_count = sum(1 for trend in real_trends if 'ballet' in trend.get('name', '').lower())
+                print(f"🔍 Gaps Backend: Ballet flats in results: {ballet_flats_count}")
+                analysis["trending_styles"] = real_trends
+                analysis["gender_filter"] = gender
+            else:
+                print("⚠️ Gaps Backend: No real trends available, keeping fallback data")
+        except Exception as e:
+            print(f"❌ Gaps Backend: Error getting real trends: {e}")
+            # Keep the fallback trends from the analysis service
         
         return {
             "success": True,
@@ -33,7 +68,7 @@ async def get_wardrobe_gaps(current_user: UserProfile = Depends(get_current_user
             "message": "Wardrobe gap analysis completed successfully"
         }
     except Exception as e:
-        print(f"Error in wardrobe gap analysis: {e}")
+        print(f"❌ Gaps Backend: Error in wardrobe gap analysis: {e}")
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze wardrobe gaps"
@@ -159,9 +194,12 @@ async def get_validation_errors(current_user: UserProfile = Depends(get_current_
         )
 
 @router.get("/trending-styles")
-async def get_trending_styles() -> Dict[str, Any]:
+async def get_trending_styles(gender: str = None, current_user: UserProfile = Depends(get_current_user_optional)) -> Dict[str, Any]:
     """
-    Get current trending styles and fashion trends.
+    Get current trending styles and fashion trends, optionally filtered by gender.
+    
+    Parameters:
+    - gender: Optional gender filter ("male", "female", or None for unisex/all)
     
     Returns:
     - Trending style names and descriptions
@@ -170,23 +208,87 @@ async def get_trending_styles() -> Dict[str, Any]:
     - Color palettes
     """
     try:
-        analysis_service = WardrobeAnalysisService()
-        trending_styles = await analysis_service._get_trending_styles()
+        # Use user's gender if not specified
+        if not gender and current_user and current_user.gender:
+            gender = current_user.gender
+        
+        # Try to get real trends directly first
+        try:
+            from src.services.fashion_trends_service import FashionTrendsService
+            
+            trends_service = FashionTrendsService()
+            trending_styles = await trends_service.get_trending_styles(gender)
+            
+            if trending_styles and len(trending_styles) > 0:
+                print(f"✅ API: Successfully retrieved {len(trending_styles)} real trends for gender: {gender or 'unisex'}")
+                return {
+                    "success": True,
+                    "data": {
+                        "trending_styles": trending_styles,
+                        "total_trends": len(trending_styles),
+                        "gender_filter": gender,
+                        "most_popular": max(trending_styles, key=lambda x: x.get("popularity", 0)) if trending_styles else None,
+                        "message": f"Real trending styles retrieved successfully for {gender or 'all genders'}"
+                    }
+                }
+            else:
+                print("⚠️ API: No real trends available, using fallback data")
+        except Exception as e:
+            print(f"❌ API: Error getting real trends: {e}")
+        
+        # Fallback to curated trends if real trends fail
+        fallback_trends = [
+            {
+                "name": "Coastal Grandmother",
+                "description": "Sophisticated, relaxed style inspired by coastal living",
+                "popularity": 85,
+                "trend_direction": "increasing",
+                "category": "lifestyle",
+                "key_items": ["linen dresses", "straw hats", "neutral colors"],
+                "colors": ["beige", "white", "navy", "sage"],
+                "related_styles": ["minimalist", "elegant", "casual"],
+                "last_updated": datetime.now().isoformat()
+            },
+            {
+                "name": "Dark Academia",
+                "description": "Intellectual, scholarly aesthetic with vintage elements",
+                "popularity": 78,
+                "trend_direction": "stable",
+                "category": "academic",
+                "key_items": ["blazers", "turtlenecks", "pleated skirts"],
+                "colors": ["navy", "brown", "black", "cream"],
+                "related_styles": ["vintage", "preppy", "intellectual"],
+                "last_updated": datetime.now().isoformat()
+            },
+            {
+                "name": "Y2K Revival",
+                "description": "Early 2000s nostalgia with modern updates",
+                "popularity": 72,
+                "trend_direction": "increasing",
+                "category": "nostalgic",
+                "key_items": ["low-rise jeans", "crop tops", "platform shoes"],
+                "colors": ["pink", "purple", "silver", "white"],
+                "related_styles": ["retro", "playful", "trendy"],
+                "last_updated": datetime.now().isoformat()
+            }
+        ]
         
         return {
             "success": True,
             "data": {
-                "trending_styles": trending_styles,
-                "total_trends": len(trending_styles),
-                "most_popular": max(trending_styles, key=lambda x: x["popularity"]) if trending_styles else None
-            },
-            "message": "Trending styles retrieved successfully"
+                "trending_styles": fallback_trends,
+                "total_trends": len(fallback_trends),
+                "gender_filter": gender,
+                "most_popular": fallback_trends[0],
+                "message": "Curated trending styles (real trends unavailable)"
+            }
         }
+        
     except Exception as e:
         print(f"Error getting trending styles: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Failed to get trending styles"
+            detail="Failed to retrieve trending styles"
         )
 
 @router.get("/wardrobe-stats")
@@ -220,4 +322,58 @@ async def get_wardrobe_stats(current_user: UserProfile = Depends(get_current_use
         raise HTTPException(
             status_code=500,
             detail="Failed to get wardrobe statistics"
+        )
+
+@router.post("/force-refresh-trends")
+async def force_refresh_trends() -> Dict[str, Any]:
+    """
+    Force refresh fashion trends by bypassing the daily fetch check.
+    This will fetch fresh data from Google Trends regardless of when it was last fetched.
+    """
+    try:
+        from src.services.fashion_trends_service import FashionTrendsService
+        
+        print("🔄 Force refreshing fashion trends...")
+        
+        trends_service = FashionTrendsService()
+        
+        # Clear the fetch log to bypass the daily check
+        try:
+            today = datetime.now().date().isoformat()
+            fetch_log_ref = trends_service.db.collection("fashion_trends_fetch_log").document(today)
+            fetch_log_ref.delete()
+            print(f"🗑️ Cleared fetch log for {today}")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not clear fetch log: {e}")
+        
+        # Force fetch new trends
+        result = await trends_service.fetch_and_store_trends()
+        
+        if result["status"] == "success":
+            print(f"✅ Force refresh successful: {result['trends_fetched']} trends fetched")
+            
+            # Get the updated trends
+            trending_styles = await trends_service.get_trending_styles()
+            
+            return {
+                "success": True,
+                "data": {
+                    "trending_styles": trending_styles,
+                    "total_trends": len(trending_styles),
+                    "most_popular": max(trending_styles, key=lambda x: x["popularity"]) if trending_styles else None,
+                    "refresh_timestamp": datetime.now().isoformat()
+                },
+                "message": f"Successfully refreshed {result['trends_fetched']} trends"
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Failed to refresh trends: {result.get('reason', 'Unknown error')}"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error in force refresh: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to force refresh trends: {str(e)}"
         ) 

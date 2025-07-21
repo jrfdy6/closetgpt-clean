@@ -5,10 +5,13 @@ import Navigation from '@/components/Navigation';
 import { Toaster } from './ui/toaster';
 import { FirebaseProvider } from '@/lib/firebase-context';
 import { ThemeProvider } from './theme-provider';
+import { initializePerformanceMonitoring } from '@/lib/utils/performance';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     console.log('Providers component mounted');
+    // Initialize performance monitoring
+    initializePerformanceMonitoring();
   }, []);
 
   return (
@@ -21,7 +24,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <FirebaseProvider>
         <Navigation />
         <main className="min-h-screen bg-background">
-          {children}
+          <div className="container-readable">
+            {children}
+          </div>
         </main>
         <Toaster />
       </FirebaseProvider>

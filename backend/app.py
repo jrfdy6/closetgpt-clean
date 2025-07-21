@@ -71,7 +71,7 @@ async def get_weather(request: WeatherRequest):
                 }
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid coordinates format")
-                    else:
+        else:
             params = {
                 "q": request.location,
                 "appid": api_key,
@@ -81,12 +81,12 @@ async def get_weather(request: WeatherRequest):
         # Make request to OpenWeather API
         async with httpx.AsyncClient() as client:
             try:
-            response = await client.get(
+                response = await client.get(
                     "https://api.openweathermap.org/data/2.5/weather",
-                params=params
-            )
-            response.raise_for_status()
-            data = response.json()
+                    params=params
+                )
+                response.raise_for_status()
+                data = response.json()
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
                     raise HTTPException(status_code=404, detail="Location not found")
@@ -98,9 +98,9 @@ async def get_weather(request: WeatherRequest):
         # Extract relevant weather data
         weather_data = WeatherData(
             temperature=round((data["main"]["temp"] * 9/5) + 32, 1),  # Convert Celsius to Fahrenheit
-                condition=data["weather"][0]["main"],
-                humidity=data["main"]["humidity"],
-                wind_speed=data["wind"]["speed"],
+            condition=data["weather"][0]["main"],
+            humidity=data["main"]["humidity"],
+            wind_speed=data["wind"]["speed"],
             location=data["name"],
             precipitation=data.get("rain", {}).get("1h", 0.0)  # Get 1h rain if available
         )

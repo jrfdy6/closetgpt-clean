@@ -17,8 +17,11 @@ import {
   Zap,
   Target,
   Palette,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
+import { getFirebaseIdToken } from '@/lib/utils/auth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface WardrobeGap {
   id: string;
@@ -61,30 +64,74 @@ interface GapAnalysisData {
   trending_styles: TrendingStyle[];
   wardrobe_stats: WardrobeStats;
   analysis_timestamp: string;
+  gender_filter?: string;
 }
 
 const WardrobeGapAnalysis: React.FC = () => {
   const [gapData, setGapData] = useState<GapAnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('gaps');
+  const [activeTab, setActiveTab] = useState('trending');
+  const [hasCalledAPI, setHasCalledAPI] = useState(false);
+  const { profile, isLoading: profileLoading } = useUserProfile();
 
   const fetchGapAnalysis = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/wardrobe/gaps');
+      // Get authentication token
+      const token = await getFirebaseIdToken();
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
+      
+      // Get user's gender from the client-side profile
+      let userGender = null;
+      if (profile && profile.gender) {
+        userGender = profile.gender;
+        console.log('🎯 Client-side gender:', userGender);
+      } else {
+        console.log('⚠️ No profile or gender available yet, skipping API call');
+        setLoading(false);
+        return;
+      }
+      
+      // Call backend directly with gender parameter
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const url = new URL('/api/wardrobe/gaps', backendUrl);
+      if (userGender) {
+        url.searchParams.set('gender', userGender);
+        console.log('🎯 Adding gender parameter to backend URL:', userGender);
+      }
+      
+      console.log('🔗 Calling backend directly:', url.toString());
+      
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status === 401) {
+          setError('Please log in to view wardrobe analysis');
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return;
       }
       
       const data = await response.json();
       
       if (data.success) {
+        console.log('📊 Wardrobe Gap Analysis Data:', data.data);
         setGapData(data.data);
       } else {
+        console.error('❌ Wardrobe Gap Analysis failed:', data);
         setError('Failed to load wardrobe analysis');
       }
     } catch (err) {
@@ -93,11 +140,21 @@ const WardrobeGapAnalysis: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
-    fetchGapAnalysis();
-  }, [fetchGapAnalysis]);
+    // Only fetch when profile is loaded and not loading, and we haven't called the API yet
+    console.log('🔄 useEffect triggered:', { profileLoading, hasProfile: !!profile, profileGender: profile?.gender, hasCalledAPI });
+    if (!profileLoading && profile && !hasCalledAPI) {
+      console.log('✅ Profile loaded, making API call');
+      setHasCalledAPI(true);
+      fetchGapAnalysis();
+    } else if (!profileLoading && profile && hasCalledAPI) {
+      console.log('🚫 API already called, skipping');
+    } else {
+      console.log('⏳ Waiting for profile to load...');
+    }
+  }, [fetchGapAnalysis, profileLoading, profile, hasCalledAPI]);
 
   const handleAddItem = (itemName: string) => {
     // Navigate to add item page with pre-filled data
@@ -157,19 +214,42 @@ const WardrobeGapAnalysis: React.FC = () => {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Wardrobe Gap Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={fetchGapAnalysis} variant="outline" size="sm" className="mt-4">
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!gapData) {
     return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>No wardrobe data available</AlertDescription>
-      </Alert>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Wardrobe Gap Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>No wardrobe data available</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -226,8 +306,8 @@ const WardrobeGapAnalysis: React.FC = () => {
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="gaps">Gaps</TabsTrigger>
           <TabsTrigger value="trending">Trending</TabsTrigger>
+          <TabsTrigger value="gaps">Gaps</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
         </TabsList>
@@ -360,62 +440,99 @@ const WardrobeGapAnalysis: React.FC = () => {
         <TabsContent value="trending" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Trending Styles
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Trending Styles
+                  </CardTitle>
+                  {gapData.gender_filter && (
+                    <Badge variant="outline" className="text-xs">
+                      {gapData.gender_filter === 'female' ? '👩 Women\'s' : 
+                       gapData.gender_filter === 'male' ? '👨 Men\'s' : 
+                       '🌈 All Genders'}
+                    </Badge>
+                  )}
+                </div>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      const response = await fetch('/api/wardrobe/force-refresh-trends', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      if (response.ok) {
+                        await fetchGapAnalysis(); // Refresh the data
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing trends:', error);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh Trends
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {gapData.trending_styles.map((style, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">{style.name}</h4>
-                      <Badge className="bg-purple-100 text-purple-800">
-                        <Star className="w-3 h-3 mr-1" />
-                        {style.popularity}%
-                      </Badge>
+                {(() => {
+                  return gapData.trending_styles.map((style, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">{style.name}</h4>
+                        <Badge className="bg-purple-100 text-purple-800">
+                          <Star className="w-3 h-3 mr-1" />
+                          {style.popularity}%
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600">{style.description}</p>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-yellow-500" />
+                          <span className="text-sm font-medium">Key Items:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {style.key_items.slice(0, 4).map((item, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Palette className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-medium">Colors:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {style.colors.slice(0, 4).map((color, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {color}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleShoppingSuggestion(style.key_items)}
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        Shop This Trend
+                      </Button>
                     </div>
-                    <p className="text-sm text-gray-600">{style.description}</p>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-yellow-500" />
-                        <span className="text-sm font-medium">Key Items:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {style.key_items.slice(0, 4).map((item, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {item}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Palette className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium">Colors:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {style.colors.slice(0, 4).map((color, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {color}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => handleShoppingSuggestion(style.key_items)}
-                    >
-                      <ShoppingCart className="w-4 h-4 mr-1" />
-                      Shop This Trend
-                    </Button>
-                  </div>
-                ))}
+                  ))
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -461,7 +578,7 @@ const WardrobeGapAnalysis: React.FC = () => {
             {/* Styles */}
             <Card>
               <CardHeader>
-                <CardTitle>Style Preferences</CardTitle>
+                <CardTitle>Style Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -478,7 +595,7 @@ const WardrobeGapAnalysis: React.FC = () => {
             {/* Seasons */}
             <Card>
               <CardHeader>
-                <CardTitle>Seasonal Coverage</CardTitle>
+                <CardTitle>Seasonal Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -498,17 +615,64 @@ const WardrobeGapAnalysis: React.FC = () => {
         <TabsContent value="recommendations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Smart Recommendations</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Smart Recommendations
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                Personalized suggestions based on your wardrobe analysis, style gaps, and current trends
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {gapData.recommendations.map((recommendation, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <p className="text-sm">{recommendation}</p>
+                {gapData.recommendations.length > 0 ? (
+                  gapData.recommendations.map((recommendation, index) => (
+                    <div key={index} className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1">
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">{index + 1}</span>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-800 leading-relaxed">{recommendation}</p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleShoppingSuggestion([recommendation])}
+                            className="text-xs"
+                          >
+                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            Shop
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Great Job!</h3>
+                    <p className="text-gray-600">
+                      Your wardrobe is well-balanced and doesn't need immediate improvements.
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
+              
+              {gapData.recommendations.length > 0 && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-2">💡 Pro Tips</h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    <li>• Focus on high-priority recommendations first</li>
+                    <li>• Consider how new pieces will work with your existing wardrobe</li>
+                    <li>• Look for versatile items that serve multiple purposes</li>
+                    <li>• Don't forget to consider your personal style preferences</li>
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

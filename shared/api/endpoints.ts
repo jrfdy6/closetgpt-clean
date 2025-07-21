@@ -32,11 +32,11 @@ export const API_ENDPOINTS = {
   OUTFITS: {
     LIST: '/api/outfits',
     CREATE: '/api/outfits',
-    GET: (id: string) => `/api/outfits/${id}`,
-    UPDATE: (id: string) => `/api/outfits/${id}`,
-    DELETE: (id: string) => `/api/outfits/${id}`,
+    GET: (id: string) => `/api/outfit/${id}`,
+    UPDATE: (id: string) => `/api/outfit/${id}`,
+    DELETE: (id: string) => `/api/outfit/${id}`,
     RECOMMENDATIONS: '/api/outfits/recommendations',
-    GENERATE: '/api/outfits/generate'
+    GENERATE: '/api/outfit/generate'  // ✅ UPDATED: Use the correct endpoint
   },
   
   // AI endpoints

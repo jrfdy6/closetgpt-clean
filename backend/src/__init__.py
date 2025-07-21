@@ -1,7 +1,7 @@
 # This file makes the src directory a Python package
-from .types.profile import UserProfile
-from .types.outfit import WeatherData, OutfitContext, OutfitGeneratedOutfit, OutfitPiece
-from .types.wardrobe import (
+from .custom_types.profile import UserProfile
+from .custom_types.outfit import WeatherData, OutfitContext, OutfitGeneratedOutfit, OutfitPiece
+from .custom_types.wardrobe import (
     ClothingType,
     Season,
     StyleTag,

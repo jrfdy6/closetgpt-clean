@@ -8,6 +8,46 @@ from google.cloud.firestore_v1._helpers import DatetimeWithNanoseconds
 
 logger = logging.getLogger(__name__)
 
+async def create_user_profile(user_id: str, name: str, email: str) -> bool:
+    """Create a new user profile in Firestore."""
+    try:
+        logger.info(f"Creating user profile for user {user_id}")
+        
+        # Create user profile document
+        user_profile = {
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+            "created_at": datetime.now().timestamp(),
+            "updated_at": datetime.now().timestamp(),
+            "preferences": {
+                "style": [],
+                "colors": [],
+                "occasions": []
+            },
+            "measurements": {
+                "height": None,
+                "weight": None,
+                "bodyType": None
+            },
+            "stylePreferences": [],
+            "bodyType": None
+        }
+        
+        # Save to Firestore
+        doc_ref = db.collection('users').document(user_id)
+        doc_ref.set(user_profile)
+        
+        # Create default style discovery profile
+        await create_default_style_profile(user_id)
+        
+        logger.info(f"Successfully created user profile for {user_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creating user profile: {str(e)}", exc_info=True)
+        return False
+
 async def get_style_discovery_profile(user_id: str) -> Optional[StyleDiscoveryProfile]:
     """Get user's style discovery profile from Firestore."""
     try:

@@ -66,7 +66,7 @@ export const OCCASIONS = [
   'casual',
   'formal',
   'business',
-  'sport',
+  'athletic',
   'party',
   'beach',
   'outdoor',

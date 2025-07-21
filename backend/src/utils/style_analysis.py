@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional, Tuple
-from ..types.wardrobe import ClothingItem
-from ..types.style_engine import StyleAttributes, StyleDefinition, get_style_definition, validate_style_combination
-from ..types.visual_harmony import VisualHarmonyRule, VISUAL_HARMONY_RULES, ColorHarmonyType, SilhouetteBalance, TextureVariation
+from ..custom_types.wardrobe import ClothingItem
+from ..custom_types.style_engine import StyleAttributes, StyleDefinition, get_style_definition, validate_style_combination
+from ..custom_types.visual_harmony import VisualHarmonyRule, VISUAL_HARMONY_RULES, ColorHarmonyType, SilhouetteBalance, TextureVariation
 
 def analyze_item_style(item: ClothingItem) -> Dict[str, Any]:
     """Analyze the style attributes of a clothing item and return a detailed analysis."""

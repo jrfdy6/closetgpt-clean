@@ -1,12 +1,8 @@
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
-from ..types.wardrobe import ClothingItem, Season
-from ..types.profile import UserProfile
-
-@dataclass
-class ValidationResult:
-    is_valid: bool
-    warnings: List[str]
+import time
+from ..custom_types.wardrobe import ClothingItem, Season
+from ..custom_types.profile import UserProfile
+from ..services.validation_orchestrator import ValidationResult, ValidationStep
 
 # Material compatibility rules
 COMPATIBLE_MATERIALS: Dict[str, List[str]] = {
@@ -44,6 +40,7 @@ BODY_TYPE_FITS: Dict[str, List[str]] = {
 }
 
 def validate_material_compatibility(items: List[ClothingItem]) -> ValidationResult:
+    start_time = time.time()
     warnings = []
     materials = [item.metadata.visualAttributes.material.lower() if item.metadata and item.metadata.visualAttributes and item.metadata.visualAttributes.material else 'unknown' for item in items]
 
@@ -61,93 +58,137 @@ def validate_material_compatibility(items: List[ClothingItem]) -> ValidationResu
             if material2 not in compatible_with1 and material1 not in compatible_with2:
                 warnings.append(f"Material compatibility warning: {material1} and {material2} may not work well together")
 
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.FORM_COMPLETENESS,
         is_valid=len(warnings) == 0,
-        warnings=warnings
+        errors=[],
+        warnings=warnings,
+        metadata={"materials": materials},
+        duration=duration
     )
 
 def validate_weather_appropriateness(items: List[ClothingItem], season: Season) -> ValidationResult:
+    start_time = time.time()
     warnings = []
     season_materials = WEATHER_MATERIALS.get(season.value.lower(), [])
 
     for item in items:
         if not item.metadata or not item.metadata.visualAttributes:
             continue
-            
         material = item.metadata.visualAttributes.material
         if material and material.lower() not in season_materials:
             warnings.append(f"{item.name} ({material}) may not be appropriate for {season.value} weather")
 
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.WEATHER_COMPATIBILITY,
         is_valid=len(warnings) == 0,
-        warnings=warnings
+        errors=[],
+        warnings=warnings,
+        metadata={"season": season.value, "season_materials": season_materials},
+        duration=duration
     )
 
 def validate_skin_tone_compatibility(items: List[ClothingItem], user_profile: UserProfile) -> ValidationResult:
+    start_time = time.time()
     warnings = []
     skin_tone = user_profile.skinTone.lower() if user_profile.skinTone else None
 
     if not skin_tone:
-        return ValidationResult(is_valid=True, warnings=[])
+        return ValidationResult(
+            step=ValidationStep.FORM_COMPLETENESS,
+            is_valid=True,
+            errors=[],
+            warnings=[],
+            metadata={"skin_tone": None},
+            duration=0.0
+        )
 
     recommended_colors = SKIN_TONE_COLORS.get(skin_tone, [])
-    
     for item in items:
-        color = item.color.lower()
+        color = getattr(item, 'color', '').lower() if hasattr(item, 'color') else ''
         if not any(rec_color in color for rec_color in recommended_colors):
             warnings.append(f"{item.name} ({color}) may not complement your {skin_tone} skin tone")
 
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.FORM_COMPLETENESS,
         is_valid=len(warnings) == 0,
-        warnings=warnings
+        errors=[],
+        warnings=warnings,
+        metadata={"skin_tone": skin_tone, "recommended_colors": recommended_colors},
+        duration=duration
     )
 
 def validate_body_type_fit(items: List[ClothingItem], user_profile: UserProfile) -> ValidationResult:
+    start_time = time.time()
     warnings = []
     body_type = user_profile.bodyType.lower() if user_profile.bodyType else None
     fit_preference = user_profile.fitPreference.lower() if user_profile.fitPreference else None
 
     if not body_type:
-        return ValidationResult(is_valid=True, warnings=[])
+        return ValidationResult(
+            step=ValidationStep.BODY_TYPE_COMPATIBILITY,
+            is_valid=True,
+            errors=[],
+            warnings=[],
+            metadata={"body_type": None},
+            duration=0.0
+        )
 
     recommended_fits = BODY_TYPE_FITS.get(body_type, [])
-
     for item in items:
         if not item.metadata or not item.metadata.visualAttributes:
             continue
-            
         item_fit = item.metadata.visualAttributes.fit
         if item_fit:
             item_fit = item_fit.lower()
             if item_fit not in recommended_fits:
                 warnings.append(f"{item.name} ({item_fit} fit) may not be ideal for your {body_type} body type")
-
             if fit_preference and item_fit != fit_preference:
                 warnings.append(f"{item.name} ({item_fit} fit) doesn't match your preferred {fit_preference} fit")
 
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.BODY_TYPE_COMPATIBILITY,
         is_valid=len(warnings) == 0,
-        warnings=warnings
+        errors=[],
+        warnings=warnings,
+        metadata={"body_type": body_type, "recommended_fits": recommended_fits},
+        duration=duration
     )
 
 def validate_gender_appropriateness(items: List[ClothingItem], user_profile: UserProfile) -> ValidationResult:
+    start_time = time.time()
     warnings = []
     gender = user_profile.gender.lower() if user_profile.gender else None
 
     if not gender:
-        return ValidationResult(is_valid=True, warnings=[])
+        return ValidationResult(
+            step=ValidationStep.FORM_COMPLETENESS,
+            is_valid=True,
+            errors=[],
+            warnings=[],
+            metadata={"gender": None},
+            duration=0.0
+        )
 
     for item in items:
         if not item.metadata or not item.metadata.visualAttributes:
             continue
-            
         item_gender = item.metadata.visualAttributes.genderTarget
         if item_gender and item_gender.lower() != 'unisex' and item_gender.lower() != gender:
             warnings.append(f"{item.name} is targeted for {item_gender} but your preference is {gender}")
 
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.FORM_COMPLETENESS,
         is_valid=len(warnings) == 0,
-        warnings=warnings
+        errors=[],
+        warnings=warnings,
+        metadata={"gender": gender},
+        duration=duration
     )
 
 def validate_outfit_compatibility(
@@ -155,6 +196,7 @@ def validate_outfit_compatibility(
     user_profile: UserProfile,
     season: Season
 ) -> ValidationResult:
+    start_time = time.time()
     results = [
         validate_material_compatibility(items),
         validate_weather_appropriateness(items, season),
@@ -165,8 +207,12 @@ def validate_outfit_compatibility(
 
     all_warnings = [warning for result in results for warning in result.warnings]
     is_valid = all(result.is_valid for result in results)
-
+    duration = time.time() - start_time
     return ValidationResult(
+        step=ValidationStep.FORM_COMPLETENESS,
         is_valid=is_valid,
-        warnings=all_warnings
+        errors=[],
+        warnings=all_warnings,
+        metadata={},
+        duration=duration
     ) 

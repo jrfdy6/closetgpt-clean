@@ -205,19 +205,21 @@ export const getWardrobeItems = async (userId: string): Promise<WardrobeItemsRes
       console.log('getWardrobeItems: Most recent item created at:', timestamps[0].createdAt);
     }
 
-    const items = snapshot.docs.map(doc => {
+    const items = snapshot.docs.map((doc, docIndex) => {
       console.log('getWardrobeItems: Processing document', doc.id);
       const data = doc.data();
-      console.log('getWardrobeItems: Raw document data:', {
-        id: doc.id,
-        userId: data.userId,
-        name: data.name,
-        type: data.type,
-        hasImageUrl: !!data.imageUrl,
-        hasMetadata: !!data.metadata,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      });
+      // Only log the first few processed items for debugging
+      if (docIndex < 3) {
+        console.log('getWardrobeItems: Processed item:', {
+          id: doc.id,
+          name: data.name,
+          type: data.type,
+          style: data.style,
+          styleType: typeof data.style,
+          styleIsArray: Array.isArray(data.style),
+          styleLength: Array.isArray(data.style) ? data.style.length : 'N/A'
+        });
+      }
 
       // Safely handle timestamp conversion
       let createdAt: number;
@@ -307,10 +309,12 @@ export const getWardrobeItems = async (userId: string): Promise<WardrobeItemsRes
         colorName: data.colorName ?? undefined,
         backgroundRemoved: data.backgroundRemoved ?? false,
         embedding: data.embedding,
+        favorite: data.favorite ?? false, // Add the favorite property
+        wearCount: data.wearCount ?? 0, // Add wear count tracking
+        lastWorn: data.lastWorn ?? null, // Add last worn timestamp
         metadata
       };
 
-      console.log('getWardrobeItems: Processed item:', item);
       return item;
     });
 
@@ -575,6 +579,8 @@ export const addWardrobeItem = async (item: Omit<ClothingItem, 'id' | 'userId' |
       season: item.season ?? [],
       occasion: item.occasion ?? [],
       tags: item.tags ?? [],
+      wearCount: 0, // Initialize wear count to 0
+      lastWorn: null, // Initialize last worn to null
       metadata
     };
 
@@ -661,6 +667,8 @@ export const addMultipleWardrobeItems = async (
         colorName: item.colorName || undefined,
         backgroundRemoved: item.backgroundRemoved || false,
         embedding: item.embedding || undefined,
+        wearCount: 0, // Initialize wear count to 0
+        lastWorn: null, // Initialize last worn to null
         metadata
       };
       

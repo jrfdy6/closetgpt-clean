@@ -131,6 +131,10 @@ export interface WardrobeItem {
   imageUrl: string;
   createdAt: number;
   updatedAt: number;
+  favorite?: boolean; // Added to match backend implementation
+  wearCount?: number; // Wear count tracking
+  lastWorn?: number | null; // Last worn timestamp
+  occasion?: string[]; // Occasion tags
   metadata?: {
     brand?: string;
     material?: string;

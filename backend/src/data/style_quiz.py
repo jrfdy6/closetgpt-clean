@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from ..types.style_discovery import QuizQuestion, StyleAesthetic, ColorSeason, BodyType
+from ..custom_types.style_discovery import QuizQuestion, StyleAesthetic, ColorSeason, BodyType
 import logging
 
 STYLE_QUIZ_QUESTIONS: List[QuizQuestion] = [

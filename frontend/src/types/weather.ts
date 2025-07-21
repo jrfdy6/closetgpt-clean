@@ -1,3 +1,4 @@
+// Weather data interface for the application
 export interface WeatherData {
   temperature: number;
   condition: string;
@@ -5,6 +6,7 @@ export interface WeatherData {
   humidity: number;
   wind_speed: number;
   precipitation: number;
+  fallback?: boolean;
 }
 
 export type WeatherCondition = 

@@ -20,7 +20,40 @@ export const ClothingTypeEnum = z.enum([
   'loafers',
   'sneakers',
   'accessory',
-  'other'
+  'other',
+  't-shirt',
+  'blouse',
+  'tank_top',
+  'crop_top',
+  'polo',
+  'hoodie',
+  'cardigan',
+  'blazer',
+  'coat',
+  'vest',
+  'jeans',
+  'chinos',
+  'slacks',
+  'joggers',
+  'sweatpants',
+  'mini_skirt',
+  'midi_skirt',
+  'maxi_skirt',
+  'pencil_skirt',
+  'sundress',
+  'cocktail_dress',
+  'maxi_dress',
+  'mini_dress',
+  'boots',
+  'sandals',
+  'heels',
+  'flats',
+  'hat',
+  'scarf',
+  'belt',
+  'jewelry',
+  'bag',
+  'watch'
 ]);
 
 export const SeasonEnum = z.enum(['spring', 'summer', 'fall', 'winter']);
@@ -135,6 +168,11 @@ export const OutfitScoringSchema = z.object({
   quality: z.number().min(0).max(10)
 });
 
+// New layering-specific enums
+export const LayerLevelEnum = z.enum(['base', 'inner', 'middle', 'outer']);
+export const WarmthFactorEnum = z.enum(['light', 'medium', 'heavy']);
+export const CoreCategoryEnum = z.enum(['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory']);
+
 // Metadata schemas
 export const VisualAttributesSchema = z.object({
   material: z.string().nullable().optional(),
@@ -150,6 +188,12 @@ export const VisualAttributesSchema = z.object({
   backgroundRemoved: z.boolean().nullable().optional(),
   wearLayer: z.enum(["inner", "outer", "base"]).nullable().optional(),
   formalLevel: z.enum(["casual", "semi-formal", "formal"]).nullable().optional(),
+  // New layering properties
+  layerLevel: LayerLevelEnum.optional(),
+  warmthFactor: WarmthFactorEnum.optional(),
+  coreCategory: CoreCategoryEnum.optional(),
+  canLayer: z.boolean().optional(),
+  maxLayers: z.number().min(1).max(5).optional(),
   // Add new compatibility attributes
   temperatureCompatibility: TemperatureCompatibilitySchema.optional(),
   materialCompatibility: MaterialCompatibilitySchema.optional(),
@@ -221,12 +265,19 @@ export const ClothingItemSchema = z.object({
   colorName: z.string().nullable().optional(),
   metadata: MetadataSchema.optional(),
   embedding: z.array(z.number()).optional(),
-  backgroundRemoved: z.boolean().optional()
+  backgroundRemoved: z.boolean().optional(),
+  favorite: z.boolean().optional(),
+  // Wear tracking fields
+  wearCount: z.number().default(0).optional(),
+  lastWorn: z.number().nullable().optional()
 });
 
 // Export all types
 export type Season = z.infer<typeof SeasonEnum>;
 export type StyleTag = z.infer<typeof StyleTagEnum>;
+export type LayerLevel = z.infer<typeof LayerLevelEnum>;
+export type WarmthFactor = z.infer<typeof WarmthFactorEnum>;
+export type CoreCategory = z.infer<typeof CoreCategoryEnum>;
 export type VisualAttributes = z.infer<typeof VisualAttributesSchema>;
 export type ItemMetadata = z.infer<typeof ItemMetadataSchema>;
 export type BasicMetadata = z.infer<typeof BasicMetadataSchema>;
@@ -494,10 +545,29 @@ export const OutfitGeneratedOutfitSchema = z.object({
   styleTags: z.array(z.string()),
   createdAt: z.number(),
   updatedAt: z.number(),
+  // NEW: Add validation and warning fields
+  wasSuccessful: z.boolean().optional(),
+  validationErrors: z.array(z.string()).optional(),
+  warnings: z.array(z.string()).optional(),
+  validation_details: z.object({
+    errors: z.array(z.string()).optional(),
+    warnings: z.array(z.string()).optional(),
+    fixes: z.array(z.object({
+      method: z.string(),
+      original_error: z.string(),
+      applied: z.boolean()
+    })).optional()
+  }).optional(),
   metadata: z.object({
     colorHarmony: z.string().optional(),
     styleNotes: z.string().optional(),
-    feedback: z.string().optional()
+    feedback: z.string().optional(),
+    // NEW: Add validation metadata
+    validation_summary: z.object({
+      total_errors: z.number().optional(),
+      total_warnings: z.number().optional(),
+      success_rate: z.number().optional()
+    }).optional()
   }).optional()
 });
 

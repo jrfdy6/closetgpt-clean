@@ -1,23 +1,46 @@
-fastapi==0.109.0
-uvicorn==0.24.0
-pydantic>=2.0.0
-python-dotenv>=1.0.0
-openai==1.3.0
-httpx==0.25.1
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 python-multipart==0.0.6
-pillow==10.2.0
-numpy==1.26.4
+python-dotenv==1.0.0
+
+# Data validation and settings
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Firebase integration
+firebase-admin==6.2.0
+
+# AI and ML
+openai==1.3.7
 torch==2.2.0
 torchvision==0.17.0
 ftfy
 regex
 tqdm
 git+https://github.com/openai/CLIP.git
-unidecode==1.3.7
+
+# Image processing
+Pillow==10.1.0
+colorthief==0.2.1
 rembg==2.0.50
-firebase-admin>=6.2.0
+unidecode==1.3.7
+
+# HTTP and networking
 requests==2.31.0
+httpx==0.25.2
+aiofiles==23.2.1
+
+# Date and time
+python-dateutil==2.8.2
+
+# Security
+cryptography>=41.0.0
 python-jose==3.3.0
 passlib==1.7.4
 bcrypt==4.1.2
-pillow-heif==0.14.0 
+
+# Additional utilities
+pytrends>=4.9.0
+schedule>=1.2.0
+google-cloud-firestore>=2.11.0 

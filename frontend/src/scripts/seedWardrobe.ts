@@ -27,7 +27,7 @@ const sampleItems: Omit<ClothingItem, 'id'>[] = [
     style: ["casual", "streetwear"],
     season: ["spring", "summer", "fall"],
     occasion: ["casual", "everyday"],
-    imageUrl: "https://example.com/jeans.jpg",
+    imageUrl: "https://via.placeholder.com/400x600/1E90FF/FFFFFF?text=Jeans",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     metadata: {}
@@ -58,7 +58,7 @@ const sampleItems: Omit<ClothingItem, 'id'>[] = [
     style: ["casual", "minimalist"],
     season: ["spring", "summer"],
     occasion: ["casual", "everyday"],
-    imageUrl: "https://example.com/tshirt.jpg",
+    imageUrl: "https://via.placeholder.com/400x600/FFFFFF/000000?text=T-Shirt",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     metadata: {}

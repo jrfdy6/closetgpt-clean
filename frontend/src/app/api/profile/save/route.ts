@@ -29,20 +29,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Prepare the profile data
+    // Prepare the profile data with optional fields
     const profileData = {
-      name: body.name,
-      avatarUrl: body.avatarUrl,
-      bodyType: body.bodyType,
-      height: body.height,
-      weight: body.weight,
-      skinTone: body.skinTone,
+      name: body.name || '',
+      gender: body.gender || '',
+      avatarUrl: body.avatarUrl || '',
+      bodyType: body.bodyType || '',
+      height: body.height || '',
+      weight: body.weight || '',
+      skinTone: body.skinTone || null,
+      topSize: body.topSize || '',
+      bottomSize: body.bottomSize || '',
+      shoeSize: body.shoeSize || '',
+      chest: body.chest || '',
+      waist: body.waist || '',
+      inseam: body.inseam || '',
       stylePreferences: body.stylePreferences || [],
       occasions: body.occasions || [],
       preferredColors: body.preferredColors || [],
       formality: body.formality || 'casual',
-      fitPreference: body.fitPreference,
-      sizePreference: body.sizePreference,
+      budget: body.budget || 'mid-range',
+      preferredBrands: body.preferredBrands || [],
+      fitPreference: body.fitPreference || '',
+      sizePreference: body.sizePreference || '',
       seasonalPreferences: body.seasonality || ['spring', 'summer', 'fall', 'winter'],
       updatedAt: new Date().toISOString(),
     };
@@ -54,7 +63,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error saving profile:', error);
     return NextResponse.json(
-      { error: 'Failed to save profile' },
+      { error: 'Failed to save profile', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

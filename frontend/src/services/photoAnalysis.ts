@@ -943,7 +943,7 @@ const determineOccasion = (garments: Garment[], formality: OutfitFormality): Out
   } else if (formality === 'business' || formality === 'business-casual') {
     return 'business';
   } else if (garments.some(g => g.type === 'sneakers' || g.type === 'shorts')) {
-    return 'sports';
+    return 'athletic';
   }
   return 'everyday';
 };

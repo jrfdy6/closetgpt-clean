@@ -24,6 +24,29 @@ function convertTimestamp(timestamp: any): number {
   return Date.now();
 }
 
+// Helper function to remove undefined values from objects (Firestore doesn't allow undefined)
+function removeUndefinedValues(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedValues).filter(item => item !== null);
+  }
+  
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedValues(value);
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
+
 // Create initial user profile
 export async function createInitialUserProfile(
   userId: string,
@@ -64,11 +87,19 @@ export async function createInitialUserProfile(
 
 // Get user profile
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  console.log('=== GET USER PROFILE CALLED ===');
+  console.log('User ID:', userId);
+  
   const userRef = doc(db, USERS_COLLECTION, userId);
   const userDoc = await getDoc(userRef);
-  if (!userDoc.exists()) return null;
+  if (!userDoc.exists()) {
+    console.log('No profile document found');
+    return null;
+  }
   
   const rawData = userDoc.data();
+  console.log('Raw Firestore data:', rawData);
+  
   // Convert Firestore Timestamp to number for createdAt/updatedAt
   const profileData = {
     ...rawData,
@@ -77,10 +108,15 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     updatedAt: convertTimestamp(rawData.updatedAt),
   };
   
+  console.log('Processed profile data:', profileData);
+  
   try {
-    return UserProfileSchema.parse(profileData);
+    const validatedProfile = UserProfileSchema.parse(profileData);
+    console.log('Profile validation successful:', validatedProfile);
+    return validatedProfile;
   } catch (error) {
     console.error("Error validating user profile:", error);
+    console.error("Validation error details:", error);
     return null;
   }
 }
@@ -90,15 +126,30 @@ export async function setUserProfile(
   userId: string,
   profile: Partial<UserProfile>
 ): Promise<void> {
-  const userRef = doc(db, USERS_COLLECTION, userId);
-  await setDoc(
-    userRef,
-    {
-      ...profile,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
+  console.log('=== SET USER PROFILE CALLED ===');
+  console.log('User ID:', userId);
+  console.log('Profile data to save:', profile);
+  
+  try {
+    const userRef = doc(db, USERS_COLLECTION, userId);
+    
+    // Clean the profile data to remove undefined values
+    const cleanedProfile = removeUndefinedValues(profile);
+    console.log('Cleaned profile data:', cleanedProfile);
+    
+    await setDoc(
+      userRef,
+      {
+        ...cleanedProfile,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true }
+    );
+    console.log('Profile saved successfully to Firestore');
+  } catch (error) {
+    console.error('Error saving profile to Firestore:', error);
+    throw error;
+  }
 }
 
 // Update user profile
@@ -107,8 +158,12 @@ export async function updateUserProfile(
   updates: Partial<UserProfile>
 ): Promise<void> {
   const userRef = doc(db, USERS_COLLECTION, userId);
+  
+  // Clean the updates data to remove undefined values
+  const cleanedUpdates = removeUndefinedValues(updates);
+  
   await updateDoc(userRef, {
-    ...updates,
+    ...cleanedUpdates,
     updatedAt: Timestamp.now(),
   });
 }

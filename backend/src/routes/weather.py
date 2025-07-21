@@ -60,20 +60,31 @@ async def get_weather(request: WeatherRequest):
             }
 
         # Make request to OpenWeather API
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:  # 10 second timeout
             try:
+                logger.info(f"Fetching weather for location: {request.location}")
                 response = await client.get(
                     "https://api.openweathermap.org/data/2.5/weather",
                     params=params
                 )
                 response.raise_for_status()
                 data = response.json()
+                logger.info(f"Weather data retrieved successfully for {data.get('name', 'unknown location')}")
+            except httpx.TimeoutException:
+                logger.error("Timeout while fetching weather data")
+                raise HTTPException(status_code=500, detail="Weather service timeout")
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
+                    logger.error(f"Location not found: {request.location}")
                     raise HTTPException(status_code=404, detail="Location not found")
-                raise HTTPException(status_code=500, detail="Error fetching weather data")
+                elif e.response.status_code == 401:
+                    logger.error("Invalid OpenWeather API key")
+                    raise HTTPException(status_code=500, detail="Weather service configuration error")
+                else:
+                    logger.error(f"OpenWeather API error: {e.response.status_code}")
+                    raise HTTPException(status_code=500, detail="Error fetching weather data")
             except httpx.RequestError as e:
-                logger.error(f"Network error: {str(e)}")
+                logger.error(f"Network error while fetching weather: {str(e)}")
                 raise HTTPException(status_code=500, detail="Network error while fetching weather data")
 
         # Extract relevant weather data

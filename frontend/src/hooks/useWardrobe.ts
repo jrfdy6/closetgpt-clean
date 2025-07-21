@@ -32,13 +32,14 @@ export function useWardrobe(): {
   const { user } = useFirebase();
 
   const loadItems = useCallback(async () => {
-    console.log('Starting to load items for user:', user?.uid);
     if (!user?.uid) {
-      console.log('No user ID available, skipping load');
+      console.log('No user, skipping loadItems');
       return;
     }
+    
     setLoading(true);
     setError(null);
+    
     try {
       console.log('Calling getWardrobeItems...');
       const result = await getWardrobeItems(user.uid);
@@ -63,7 +64,7 @@ export function useWardrobe(): {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.uid]);
 
   // Load wardrobe when component mounts and when user changes
   useEffect(() => {
@@ -83,7 +84,7 @@ export function useWardrobe(): {
     }
     console.log('Loading wardrobe for user:', user.uid);
     loadItems();
-  }, [loadItems, user]);
+  }, [user?.uid, loadItems]);
 
   const addItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
     if (!user?.uid) {

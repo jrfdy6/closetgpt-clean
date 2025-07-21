@@ -1,5 +1,25 @@
 import { OpenAI } from "openai";
-import type { UserProfile, ClothingItem } from "./outfitGenerator";
+
+// Define types locally instead of importing
+interface UserProfile {
+  id: string;
+  name: string;
+  stylePreferences: string[];
+  occasions: string[];
+  bodyType?: string;
+  skinTone?: string;
+}
+
+interface ClothingItem {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
+  style: string[];
+  season: string[];
+  brand?: string;
+  price?: number;
+}
 
 // Types
 export interface FashionTrend {
@@ -14,11 +34,12 @@ export interface FashionTrend {
   createdAt: Date;
   updatedAt: Date;
   gender: "Men" | "Women" | "Unisex";
-  priceRange: typeof PRICE_RANGES[number];
+  priceRange: "Budget" | "Mid-Range" | "Luxury";
   sustainability: boolean;
   culturalInfluence?: string;
-  colorPalette: string[];
-  fabricTypes: string[];
+  colorPalette?: string[];
+  fabricTypes?: string[];
+  imageUrl: string;
 }
 
 export interface TrendAnalytics {
@@ -227,10 +248,11 @@ export const PRICE_RANGES = ["Budget", "Mid-Range", "Luxury"] as const;
 // Trend API Integration
 export async function fetchTrendingStyles(): Promise<FashionTrend[]> {
   try {
-    // TODO: Replace with actual API endpoint
-    const response = await fetch("https://api.fashiontrends.com/v1/trends", {
+    // Use the real backend API endpoint
+    const response = await fetch("/api/wardrobe/trending-styles", {
+      method: "GET",
       headers: {
-        "Authorization": `Bearer ${process.env.NEXT_PUBLIC_FASHION_TRENDS_API_KEY}`,
+        "Content-Type": "application/json",
       },
     });
 
@@ -239,7 +261,31 @@ export async function fetchTrendingStyles(): Promise<FashionTrend[]> {
     }
 
     const data = await response.json();
-    return data.trends;
+    
+    if (data.success && data.data?.trending_styles) {
+      // Convert backend format to frontend format
+      return data.data.trending_styles.map((trend: any, index: number) => ({
+        id: `trend-${index}`,
+        name: trend.name,
+        category: trend.category || "General",
+        subCategories: trend.related_styles || [],
+        season: "All Seasons", // Backend doesn't provide season info
+        popularity: trend.popularity / 100, // Convert from 0-100 to 0-1
+        description: trend.description,
+        keyItems: trend.key_items || [],
+        createdAt: new Date(trend.last_updated || Date.now()),
+        updatedAt: new Date(trend.last_updated || Date.now()),
+        gender: "Unisex",
+        priceRange: "Mid-Range",
+        sustainability: true,
+        culturalInfluence: trend.category,
+        colorPalette: trend.colors || [],
+        fabricTypes: [],
+        imageUrl: "", // Backend doesn't provide images
+      }));
+    }
+    
+    throw new Error("Invalid response format");
   } catch (error) {
     console.error("Error fetching trends:", error);
     // Fallback to local trends if API fails
@@ -267,6 +313,7 @@ function getLocalTrends(): FashionTrend[] {
       culturalInfluence: "Scandinavian",
       colorPalette: ["Beige", "White", "Gray", "Black"],
       fabricTypes: ["Silk", "Wool", "Cashmere"],
+      imageUrl: "",
     },
     {
       id: "2",
@@ -285,6 +332,7 @@ function getLocalTrends(): FashionTrend[] {
       culturalInfluence: "American",
       colorPalette: ["Olive", "Black", "Orange", "Navy"],
       fabricTypes: ["Nylon", "Gore-Tex", "Polyester"],
+      imageUrl: "",
     },
     // Add more local trends...
   ];
@@ -374,7 +422,7 @@ export async function recommendTrends(
     // Fallback to basic recommendation based on user preferences
     return currentTrends
       .filter(trend => 
-        userProfile.stylePreferences.some(pref => 
+        userProfile.stylePreferences.some((pref: string) => 
           trend.category.toLowerCase().includes(pref.toLowerCase())
         )
       )

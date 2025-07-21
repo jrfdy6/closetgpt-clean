@@ -1,22 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X } from "lucide-react";
+import { Upload, X, ArrowLeft, Save, Image as ImageIcon } from "lucide-react";
 import { useWardrobe } from "@/hooks/useWardrobe";
-import type { ClothingItem } from "@/lib/utils/outfitGenerator";
+import type { ClothingItem } from "@/types/wardrobe";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/use-toast";
+import { Container } from "@/components/ui/typography";
 
 // Constants
 const CLOTHING_TYPES = [
-  "Top",
-  "Bottom",
-  "Dress",
-  "Outerwear",
-  "Shoes",
-  "Accessories",
-];
+  "shirt",
+  "pants",
+  "dress",
+  "jacket",
+  "shoes",
+  "accessory",
+] as const;
 
-const SEASONS = ["Spring", "Summer", "Fall", "Winter"];
+const SEASONS = ["spring", "summer", "fall", "winter"] as const;
 
 const COLORS = [
   "Black",
@@ -33,15 +42,16 @@ const COLORS = [
   "Orange",
 ];
 
-export default function EditItemPage({ params }: { params: { id: string } }) {
+export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { getItem, updateItem } = useWardrobe();
+  const { wardrobe, loading, error: wardrobeError, updateItem } = useWardrobe();
+  const resolvedParams = use(params);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
   const [name, setName] = useState("");
-  const [type, setType] = useState(CLOTHING_TYPES[0]);
+  const [type, setType] = useState<ClothingItem['type']>(CLOTHING_TYPES[0]);
   const [color, setColor] = useState(COLORS[0]);
-  const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
+  const [selectedSeasons, setSelectedSeasons] = useState<ClothingItem['season']>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -49,30 +59,22 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        const item = await getItem(params.id);
-        if (!item) {
-          router.push("/wardrobe");
-          return;
-        }
-
-        setName(item.name);
-        setType(item.type);
-        setColor(item.color);
-        setSelectedSeasons(item.season);
-        setTags(item.tags || []);
-        setPreview(item.imageUrl);
-      } catch (err) {
-        console.error("Error fetching item:", err);
-        setError("Failed to fetch item");
-      } finally {
-        setIsLoading(false);
+    if (!loading && wardrobe.length > 0) {
+      const item = wardrobe.find(item => item.id === resolvedParams.id);
+      if (!item) {
+        router.push("/wardrobe");
+        return;
       }
-    };
 
-    fetchItem();
-  }, [params.id, getItem, router]);
+      setName(item.name || "");
+      setType(item.type || CLOTHING_TYPES[0]);
+      setColor(item.color || COLORS[0]);
+      setSelectedSeasons(item.season || []);
+      setTags(item.tags || []);
+      setPreview(item.imageUrl || "");
+      setIsLoading(false);
+    }
+  }, [loading, wardrobe, resolvedParams.id, router]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,7 +88,7 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const handleSeasonToggle = (season: string) => {
+  const handleSeasonToggle = (season: ClothingItem['season'][0]) => {
     setSelectedSeasons((prev) =>
       prev.includes(season)
         ? prev.filter((s) => s !== season)
@@ -124,7 +126,7 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
         tags,
       };
 
-      await updateItem(params.id, updates);
+      await updateItem(resolvedParams.id, updates);
       router.push("/wardrobe");
     } catch (err) {
       setError("Failed to update item");
@@ -134,173 +136,240 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const { toast } = useToast();
+
   if (isLoading) {
     return (
-      <div>
-        <div>
-          <div>Loading...</div>
+      <Container maxWidth="full" padding="lg">
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-64 w-full" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          </div>
         </div>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div>
-      <div>
-        <div>
-          <h1>Edit Item</h1>
-          <p>
-            Update your wardrobe item
-          </p>
+    <Container maxWidth="full" padding="lg">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.back()}
+              className="shadow-sm"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Edit Item</h1>
+              <p className="text-muted-foreground">Update your wardrobe item details</p>
+            </div>
+          </div>
         </div>
-        <button onClick={() => router.back()}>
-          <X />
-          Cancel
-        </button>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Image Upload */}
+            <Card className="card-enhanced">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5" />
+                  Item Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label htmlFor="image" className="cursor-pointer">
+                      {preview ? (
+                        <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
+                          <img
+                            src={preview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <Upload className="w-8 h-8 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors flex flex-col items-center justify-center bg-gray-50">
+                          <Upload className="w-12 h-12 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 font-medium">Click to upload an image</p>
+                          <p className="text-xs text-gray-500 mt-1">JPG, PNG, or WebP</p>
+                        </div>
+                      )}
+                      <input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Basic Info */}
+            <div className="space-y-6">
+              <Card className="card-enhanced">
+                <CardHeader>
+                  <CardTitle>Basic Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter item name"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="type">Type</Label>
+                      <Select value={type} onValueChange={(value) => setType(value as ClothingItem['type'])}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CLOTHING_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Color</Label>
+                      <Select value={color} onValueChange={setColor}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COLORS.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Seasons */}
+              <Card className="card-enhanced">
+                <CardHeader>
+                  <CardTitle>Seasons</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {SEASONS.map((season) => (
+                      <Button
+                        key={season}
+                        type="button"
+                        variant={selectedSeasons.includes(season) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSeasonToggle(season)}
+                        className="capitalize"
+                      >
+                        {season}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tags */}
+              <Card className="card-enhanced">
+                <CardHeader>
+                  <CardTitle>Tags</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Add a tag"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    />
+                    <Button type="button" onClick={handleAddTag} variant="outline" size="sm">
+                      Add
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1">
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <Card className="card-enhanced border-destructive">
+              <CardContent className="pt-6">
+                <p className="text-destructive text-sm">{error}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex justify-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="shadow-sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit}>
-        {/* Image Upload */}
-        <div>
-          <div>
-            <label>Item Image</label>
-            <div>
-              <label htmlFor="image">
-                {preview ? (
-                  <img
-                    src={preview}
-                    alt="Preview"
-                  />
-                ) : (
-                  <div>
-                    <Upload />
-                    <p>
-                      Click to upload an image
-                    </p>
-                  </div>
-                )}
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Basic Info */}
-        <div>
-          <div>
-            <div>
-              <label htmlFor="name">
-                Name
-              </label>
-              <input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter item name"
-                required
-              />
-            </div>
-
-            <div>
-              <div>
-                <label htmlFor="type">
-                  Type
-                </label>
-                <select
-                  id="type"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  required
-                >
-                  {CLOTHING_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="color">
-                  Color
-                </label>
-                <select
-                  id="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  required
-                >
-                  {COLORS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label>Seasons</label>
-              <div>
-                {SEASONS.map((season) => (
-                  <button
-                    key={season}
-                    type="button"
-                    onClick={() => handleSeasonToggle(season)}
-                  >
-                    {season}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label>Tags</label>
-              <div>
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a tag"
-                />
-                <button type="button" onClick={handleAddTag}>
-                  Add Tag
-                </button>
-              </div>
-              <div>
-                {tags.map((tag) => (
-                  <div key={tag}>
-                    <span>{tag}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                    >
-                      <X />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div>
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div>
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </form>
-    </div>
+    </Container>
   );
 } 

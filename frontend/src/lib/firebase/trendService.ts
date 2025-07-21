@@ -288,7 +288,7 @@ export async function addTestTrendIfEmpty(): Promise<void> {
         gender: "Unisex",
         priceRange: "Mid-Range",
         sustainability: true,
-        imageUrl: "https://example.com/test.jpg"
+        imageUrl: "https://via.placeholder.com/400x600/CCCCCC/666666?text=Test+Trend"
       };
       
       try {

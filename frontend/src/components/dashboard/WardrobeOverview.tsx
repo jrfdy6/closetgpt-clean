@@ -22,7 +22,7 @@ export default function WardrobeOverview() {
 
   if (loading) {
     return (
-      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-white to-green-50">
+      <Card className="overflow-hidden border border-border bg-card shadow-xl">
         <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
           <CardTitle className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
@@ -33,8 +33,8 @@ export default function WardrobeOverview() {
         </CardHeader>
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-muted rounded w-3/4"></div>
+            <div className="h-32 bg-muted rounded"></div>
           </div>
         </CardContent>
       </Card>
@@ -43,7 +43,7 @@ export default function WardrobeOverview() {
 
   if (error) {
     return (
-      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-white to-red-50">
+      <Card className="overflow-hidden border border-border bg-card shadow-xl">
         <CardHeader className="bg-gradient-to-r from-red-600 to-pink-600 text-white">
           <CardTitle className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
@@ -53,7 +53,7 @@ export default function WardrobeOverview() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="text-red-600">{error}</div>
+          <div className="text-red-500">{error}</div>
         </CardContent>
       </Card>
     );
@@ -92,16 +92,16 @@ export default function WardrobeOverview() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'shirt': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'pants': return 'bg-green-100 text-green-800 border-green-200';
-      case 'shoes': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'jacket': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'shirt': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+      case 'pants': return 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20';
+      case 'shoes': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+      case 'jacket': return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
   return (
-    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-white to-green-50">
+    <Card className="overflow-hidden border border-border bg-card shadow-xl">
       <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -123,47 +123,47 @@ export default function WardrobeOverview() {
       <CardContent className="p-6 space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-            <div className="text-2xl font-bold text-blue-600">{itemTypes.shirt || 0}</div>
-            <div className="text-sm text-blue-700">Tops</div>
+          <div className="text-center p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{itemTypes.shirt || 0}</div>
+            <div className="text-sm text-blue-700 dark:text-blue-300">Tops</div>
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-            <div className="text-2xl font-bold text-green-600">{itemTypes.pants || 0}</div>
-            <div className="text-sm text-green-700">Bottoms</div>
+          <div className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/20">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{itemTypes.pants || 0}</div>
+            <div className="text-sm text-green-700 dark:text-green-300">Bottoms</div>
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
-            <div className="text-2xl font-bold text-purple-600">{itemTypes.shoes || 0}</div>
-            <div className="text-sm text-purple-700">Shoes</div>
+          <div className="text-center p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{itemTypes.shoes || 0}</div>
+            <div className="text-sm text-purple-700 dark:text-purple-300">Shoes</div>
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
-            <div className="text-2xl font-bold text-orange-600">{itemTypes.jacket || 0}</div>
-            <div className="text-sm text-orange-700">Outerwear</div>
+          <div className="text-center p-4 bg-orange-500/10 rounded-xl border border-orange-500/20">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{itemTypes.jacket || 0}</div>
+            <div className="text-sm text-orange-700 dark:text-orange-300">Outerwear</div>
           </div>
         </div>
 
         {/* Item Type Breakdown */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-blue-500" />
             Item Distribution
           </h3>
           <div className="space-y-3">
             {Object.entries(itemTypes).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
+              <div key={type} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border hover:border-border/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${getTypeColor(type)}`}>
                     {getTypeIcon(type)}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-800 capitalize">{type}</p>
-                    <p className="text-sm text-gray-500">{count} items</p>
+                    <p className="font-medium text-foreground capitalize">{type}</p>
+                    <p className="text-sm text-muted-foreground">{count} items</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-gray-600">
+                  <div className="text-sm font-medium text-muted-foreground">
                     {Math.round((count / totalItems) * 100)}%
                   </div>
-                  <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
                       style={{ width: `${(count / totalItems) * 100}%` }}
@@ -178,18 +178,18 @@ export default function WardrobeOverview() {
         {/* Color Palette */}
         {topColors.length > 0 && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
               <Palette className="w-4 h-4 text-purple-500" />
               Color Palette
             </h3>
             <div className="flex flex-wrap gap-2">
               {topColors.map(([color, count]) => (
-                <div key={color} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-100">
+                <div key={color} className="flex items-center gap-2 p-2 bg-card rounded-lg border border-border">
                   <div 
-                    className="w-4 h-4 rounded-full border border-gray-200"
+                    className="w-4 h-4 rounded-full border border-border"
                     style={{ backgroundColor: color.toLowerCase() }}
                   />
-                  <span className="text-sm font-medium text-gray-700 capitalize">{color}</span>
+                  <span className="text-sm font-medium text-foreground capitalize">{color}</span>
                   <Badge variant="outline" className="text-xs">{count}</Badge>
                 </div>
               ))}

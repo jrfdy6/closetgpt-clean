@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-const OCCASIONS = ["casual", "formal", "business", "sports", "party"];
+const OCCASIONS = ["casual", "formal", "business", "athletic", "party"];
 const MOODS = ["energetic", "relaxed", "confident", "playful", "elegant"];
 const STYLES = ["classic", "modern", "vintage", "streetwear", "bohemian"];
 
@@ -148,6 +148,18 @@ function convertUserProfileForBackend(userProfile: any): any {
 
 export async function POST(request: Request) {
   try {
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { 
+          error: "Authentication required",
+          details: "No valid authorization token provided"
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     let { 
       occasion, 
@@ -158,7 +170,8 @@ export async function POST(request: Request) {
       weather,
       userProfile,
       likedOutfits,
-      trendingStyles 
+      trendingStyles,
+      baseItem
     } = body;
 
     // If any field is empty, randomize it
@@ -168,61 +181,168 @@ export async function POST(request: Request) {
 
     // Convert wardrobe items for backend compatibility
     const convertedWardrobe = convertWardrobeForBackend(wardrobe || []);
+    
+    // DEBUG: Log wardrobe conversion
+    console.log('🔍 DEBUG: Original wardrobe length:', wardrobe?.length || 0);
+    console.log('🔍 DEBUG: Converted wardrobe length:', convertedWardrobe.length);
+    console.log('🔍 DEBUG: First 3 converted items:', convertedWardrobe.slice(0, 3).map(item => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      dominantColors: item.dominantColors?.length || 0,
+      matchingColors: item.matchingColors?.length || 0
+    })));
+    
+    // NEW: More detailed debugging
+    console.log('🔍 DEBUG: Original wardrobe sample:', wardrobe?.slice(0, 2).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      style: item.style,
+      occasion: item.occasion,
+      dominantColors: item.dominantColors,
+      matchingColors: item.matchingColors
+    })));
+    
+    console.log('🔍 DEBUG: Converted wardrobe sample:', convertedWardrobe.slice(0, 2).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      style: item.style,
+      occasion: item.occasion,
+      dominantColors: item.dominantColors,
+      matchingColors: item.matchingColors
+    })));
+
+    // Convert base item for backend compatibility if provided
+    const convertedBaseItem = baseItem ? convertWardrobeForBackend([baseItem])[0] : null;
+
+    // NEW: Retrieve recent outfit history for diversity
+    let outfitHistory = [];
+    try {
+      const historyResponse = await fetch(`${API_URL}/api/outfits`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+        },
+      });
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        // Get the last 10 outfits for diversity filtering
+        outfitHistory = historyData.slice(0, 10).map((outfit: any) => ({
+          id: outfit.id,
+          items: outfit.items || [],
+          createdAt: outfit.createdAt || Date.now(),
+          occasion: outfit.occasion,
+          style: outfit.style
+        }));
+        console.log(`📚 Retrieved ${outfitHistory.length} recent outfits for diversity`);
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve outfit history for diversity:', error);
+      // Continue without history if retrieval fails
+    }
 
     // Log the payload for debugging
-    console.log('Outfit Generation Payload:', {
+    console.log('🔍 DEBUG: Outfit Generation Payload:', {
       occasion,
       mood,
       style,
       description,
       wardrobeSize: convertedWardrobe?.length,
+      baseItem: convertedBaseItem ? convertedBaseItem.name : 'None',
       weather,
       userProfile: {
         id: userProfile?.id,
         stylePreferences: userProfile?.stylePreferences,
         bodyType: userProfile?.bodyType
-      }
+      },
+      outfitHistoryCount: outfitHistory.length
     });
+    
+    // DEBUG: Log the actual payload being sent to backend
+    const backendPayload = {
+      occasion,
+      mood,  // Add mood parameter
+      style,  // Add style parameter
+      weather: weather,  // Use weather instead of weather_conditions
+      wardrobe: convertedWardrobe,  // Add wardrobe
+      user_profile: convertUserProfileForBackend(userProfile),  // Add user profile
+      likedOutfits: likedOutfits || [],
+      trendingStyles: trendingStyles || [],
+      outfitHistory: outfitHistory,  // NEW: Add outfit history for diversity
+      baseItem: convertedBaseItem  // Add base item
+    };
+    
+    console.log('🔍 DEBUG: Backend payload wardrobe length:', backendPayload.wardrobe.length);
+    console.log('🔍 DEBUG: Backend payload first item:', backendPayload.wardrobe[0] ? {
+      id: backendPayload.wardrobe[0].id,
+      name: backendPayload.wardrobe[0].name,
+      type: backendPayload.wardrobe[0].type,
+      dominantColors: backendPayload.wardrobe[0].dominantColors?.length || 0,
+      matchingColors: backendPayload.wardrobe[0].matchingColors?.length || 0
+    } : 'No items');
 
-    // Forward the request to the backend
+    // Forward the request to the backend with authentication header
     const response = await fetch(`${API_URL}/api/outfit/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": authHeader, // Forward the Firebase ID token
       },
       body: JSON.stringify({
         occasion,
-        mood,
-        style,
-        description: description || "",
-        wardrobe: convertedWardrobe,
-        weather,
-        user_profile: convertUserProfileForBackend(userProfile),
+        mood,  // Add mood parameter
+        style,  // Add style parameter
+        weather: weather,  // Use weather instead of weather_conditions
+        wardrobe: convertedWardrobe,  // Add wardrobe
+        user_profile: convertUserProfileForBackend(userProfile),  // Add user profile
         likedOutfits: likedOutfits || [],
-        trendingStyles: trendingStyles || []
+        trendingStyles: trendingStyles || [],
+        outfitHistory: outfitHistory,  // NEW: Add outfit history for diversity
+        baseItem: convertedBaseItem  // Add base item
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Failed to parse error response' }));
-      console.error("Backend error:", errorData);
+      console.error("❌ DEBUG: Backend error:", errorData);
       throw new Error(errorData.detail || errorData.message || 'Failed to generate outfit');
     }
 
     const data = await response.json();
     
     // Log the response for debugging
-    console.log('Generated Outfit:', {
+    console.log('✅ DEBUG: Generated Outfit:', {
       id: data.id,
       name: data.name,
       occasion: data.occasion,
       style: data.style,
+      itemsCount: data.items?.length || 0,
+      wasSuccessful: data.wasSuccessful,
+      validationErrors: data.validationErrors?.length || 0,
+      warnings: data.warnings?.length || 0,
       items: data.items?.map((item: any) => ({
         name: item.name,
         type: item.type,
         style: item.style
       }))
     });
+
+    // NEW: Log warnings and validation details for debugging
+    if (data.warnings && data.warnings.length > 0) {
+      console.log('⚠️ DEBUG: Outfit Generation Warnings:', data.warnings);
+    }
+    
+    if (data.validation_details) {
+      console.log('🔍 DEBUG: Validation Details:', {
+        errors: data.validation_details.errors?.length || 0,
+        warnings: data.validation_details.warnings?.length || 0,
+        fixes: data.validation_details.fixes?.length || 0
+      });
+    }
 
     return NextResponse.json(data);
   } catch (error) {

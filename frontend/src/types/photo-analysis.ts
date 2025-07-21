@@ -48,7 +48,7 @@ export type GarmentType =
   | 'jeans' | 'boots' | 'sneakers' | 'sandals' | 'heels';
 
 export type GarmentStyle = 
-  | 'Casual' | 'Formal' | 'Business' | 'Sports' | 'Trendy' | 'Vintage' | 'Statement' | 'Smart Casual'
+  | 'Casual' | 'Formal' | 'Business' | 'Athletic / Gym' | 'Trendy' | 'Vintage' | 'Statement' | 'Smart Casual'
   | 'Minimal Luxe' | 'Gorpcore' | 'Boho' | 'Streetwear' | 'Old Money' | 'Clean Girl' | 'Korean Core' | 'Y2K'
   | 'Coastal Grandmother' | 'Dark Academia'
   | 'elegant' | 'classic' | 'modern' | 'bohemian' | 'preppy' | 'bold' | 'streetwear';
@@ -131,7 +131,7 @@ export type OutfitFormality =
 
 export type OutfitOccasion = 
   | 'everyday' | 'work' | 'business' | 'party' | 'date'
-  | 'formal-event' | 'sports' | 'outdoor' | 'travel';
+  | 'formal-event' | 'athletic' | 'outdoor' | 'travel';
 
 export type OutfitSeason = 
   | 'spring' | 'summer' | 'fall' | 'winter' | 'all-season';

@@ -3,7 +3,7 @@ from firebase_admin import credentials, firestore
 import random
 from datetime import datetime
 import uuid
-from ..types.wardrobe import (
+from ..custom_types.wardrobe import (
     ClothingType,
     Season,
     StyleType,
@@ -25,7 +25,7 @@ def init_wardrobe():
             "type": ClothingType.JACKET,
             "color": "blue",
             "season": [Season.SPRING, Season.FALL],
-            "imageUrl": "https://example.com/denim-jacket.jpg",
+            "imageUrl": "https://via.placeholder.com/400x600/1E3A8A/FFFFFF?text=Denim+Jacket",
             "tags": ["denim", "casual", "jacket"],
             "style": [StyleType.CASUAL, StyleType.STREETWEAR],
             "userId": "test-user",
@@ -41,7 +41,7 @@ def init_wardrobe():
             "type": ClothingType.SHIRT,
             "color": "white",
             "season": [Season.SPRING, Season.SUMMER, Season.FALL],
-            "imageUrl": "https://example.com/white-tshirt.jpg",
+            "imageUrl": "https://via.placeholder.com/400x600/FFFFFF/000000?text=T-Shirt",
             "tags": ["basic", "casual", "tshirt"],
             "style": [StyleType.CASUAL, StyleType.MINIMALIST],
             "userId": "test-user",
@@ -57,7 +57,7 @@ def init_wardrobe():
             "type": ClothingType.PANTS,
             "color": "black",
             "season": [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER],
-            "imageUrl": "https://example.com/black-jeans.jpg",
+            "imageUrl": "https://via.placeholder.com/400x600/000000/FFFFFF?text=Jeans",
             "tags": ["denim", "casual", "pants"],
             "style": [StyleType.CASUAL, StyleType.MINIMALIST],
             "userId": "test-user",
@@ -73,7 +73,7 @@ def init_wardrobe():
             "type": ClothingType.SNEAKERS,
             "color": "white",
             "season": [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER],
-            "imageUrl": "https://example.com/white-sneakers.jpg",
+            "imageUrl": "https://via.placeholder.com/400x600/FFFFFF/000000?text=Sneakers",
             "tags": ["casual", "sneakers"],
             "style": [StyleType.CASUAL, StyleType.MINIMALIST],
             "userId": "test-user",

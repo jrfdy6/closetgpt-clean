@@ -14,7 +14,7 @@ export async function testWardrobeCleaner(userId: string) {
     type: 'jacket',
     color: '#1E3A8A',
     season: ['spring', 'fall'],
-    imageUrl: 'https://example.com/jacket.jpg',
+    imageUrl: 'https://via.placeholder.com/400x600/1E3A8A/FFFFFF?text=Jacket',
     tags: ['denim', 'casual'],
     style: ['Casual'],
     dominantColors: [{

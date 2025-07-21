@@ -2,7 +2,7 @@ from typing import Optional, Dict, List, Any, Union
 from unidecode import unidecode
 import re
 from difflib import SequenceMatcher
-from ..types.wardrobe import ClothingType, ClothingItem
+from ..custom_types.wardrobe import ClothingType, ClothingItem
 import time
 import json
 import traceback
@@ -155,31 +155,72 @@ def normalize_clothing_type(item_type: str, sub_type: Optional[str] = None) -> C
     if type_lower == "shoes" or type_lower == "boots" or type_lower == "sneakers" or type_lower == "sandals":
         return ClothingType.SHOES
 
-    # Map common variations to standard types
+    # Map common variations to standard types with improved mapping
     type_mapping: Dict[str, ClothingType] = {
+        # Shirts
         "shirt": ClothingType.SHIRT,
-        "t-shirt": ClothingType.SHIRT,
-        "tshirt": ClothingType.SHIRT,
-        "blouse": ClothingType.SHIRT,
+        "dress_shirt": ClothingType.DRESS_SHIRT,
+        "t-shirt": ClothingType.T_SHIRT,
+        "tshirt": ClothingType.T_SHIRT,
+        "blouse": ClothingType.BLOUSE,
+        "tank_top": ClothingType.TANK_TOP,
+        "tank": ClothingType.TANK_TOP,
+        "crop_top": ClothingType.CROP_TOP,
+        "crop": ClothingType.CROP_TOP,
+        "polo": ClothingType.POLO,
         "top": ClothingType.SHIRT,
+        
+        # Bottoms
         "pants": ClothingType.PANTS,
         "trousers": ClothingType.PANTS,
-        "jeans": ClothingType.PANTS,
+        "jeans": ClothingType.JEANS,
+        "chinos": ClothingType.CHINOS,
+        "slacks": ClothingType.SLACKS,
+        "joggers": ClothingType.JOGGERS,
+        "sweatpants": ClothingType.SWEATPANTS,
+        "shorts": ClothingType.SHORTS,
         "skirt": ClothingType.SKIRT,
+        "mini_skirt": ClothingType.MINI_SKIRT,
+        "midi_skirt": ClothingType.MIDI_SKIRT,
+        "maxi_skirt": ClothingType.MAXI_SKIRT,
+        "pencil_skirt": ClothingType.PENCIL_SKIRT,
+        
+        # Dresses
         "dress": ClothingType.DRESS,
         "gown": ClothingType.DRESS,
+        "sundress": ClothingType.SUNDRESS,
+        "cocktail_dress": ClothingType.COCKTAIL_DRESS,
+        "maxi_dress": ClothingType.MAXI_DRESS,
+        "mini_dress": ClothingType.MINI_DRESS,
+        
+        # Outerwear
         "jacket": ClothingType.JACKET,
-        "coat": ClothingType.JACKET,
-        "blazer": ClothingType.JACKET,
+        "coat": ClothingType.COAT,
+        "blazer": ClothingType.BLAZER,
+        "vest": ClothingType.VEST,
         "sweater": ClothingType.SWEATER,
         "jumper": ClothingType.SWEATER,
-        "hoodie": ClothingType.SWEATER,
+        "hoodie": ClothingType.HOODIE,
+        "cardigan": ClothingType.CARDIGAN,
+        
+        # Shoes
+        "shoes": ClothingType.SHOES,
+        "dress_shoes": ClothingType.DRESS_SHOES,
+        "loafers": ClothingType.LOAFERS,
+        "sneakers": ClothingType.SNEAKERS,
+        "boots": ClothingType.BOOTS,
+        "sandals": ClothingType.SANDALS,
+        "heels": ClothingType.HEELS,
+        "flats": ClothingType.FLATS,
+        
+        # Accessories
         "accessory": ClothingType.ACCESSORY,
-        "jewelry": ClothingType.ACCESSORY,
-        "bag": ClothingType.ACCESSORY,
-        "hat": ClothingType.ACCESSORY,
-        "scarf": ClothingType.ACCESSORY,
-        "belt": ClothingType.ACCESSORY,
+        "jewelry": ClothingType.JEWELRY,
+        "bag": ClothingType.BAG,
+        "hat": ClothingType.HAT,
+        "scarf": ClothingType.SCARF,
+        "belt": ClothingType.BELT,
+        "watch": ClothingType.WATCH,
         "other": ClothingType.OTHER
     }
 
@@ -229,9 +270,16 @@ def validate_outfit_requirements(outfit: ClothingItem) -> bool:
     """
     Validate that an outfit meets all requirements.
     """
-    # Check for required pieces
-    has_top = any(item.type in [ClothingType.SHIRT, ClothingType.SWEATER, ClothingType.JACKET, ClothingType.DRESS] for item in outfit.items)
-    has_bottom = any(item.type in [ClothingType.PANTS, ClothingType.SHORTS, ClothingType.SKIRT] for item in outfit.items)
+    # Check for required pieces using core categories
+    from .layering import get_core_category
+    
+    top_items = [item for item in outfit.items if get_core_category(item.type) == CoreCategory.TOP]
+    bottom_items = [item for item in outfit.items if get_core_category(item.type) == CoreCategory.BOTTOM]
+    dress_items = [item for item in outfit.items if get_core_category(item.type) == CoreCategory.DRESS]
+    
+    has_top = len(top_items) > 0
+    has_bottom = len(bottom_items) > 0
+    has_dress = len(dress_items) > 0
     has_mixed_bottoms = any(item.type == ClothingType.PANTS for item in outfit.items) and any(item.type == ClothingType.SHORTS for item in outfit.items)
 
     # Get style and season from metadata
@@ -260,13 +308,20 @@ def validate_outfit_requirements(outfit: ClothingItem) -> bool:
         return True
 
     # Regular outfit validation
-    if not has_top:
-        logger.warning("Outfit missing a top (shirt, sweater, jacket, or dress)")
-        return False
+    if has_dress:
+        # If we have a dress, we don't need separate top and bottom
+        if not has_dress:
+            logger.warning("Outfit with dress should have at least one dress")
+            return False
+    else:
+        # If no dress, we need both top and bottom
+        if not has_top:
+            logger.warning("Outfit missing a top (shirt, sweater, jacket, etc.)")
+            return False
 
-    if not has_bottom:
-        logger.warning("Outfit missing pants, shorts, or skirt")
-        return False
+        if not has_bottom:
+            logger.warning("Outfit missing pants, shorts, or skirt")
+            return False
 
     if has_mixed_bottoms:
         logger.warning("Outfit cannot mix pants and shorts")

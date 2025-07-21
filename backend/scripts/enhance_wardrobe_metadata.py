@@ -301,7 +301,11 @@ class WardrobeMetadataEnhancer:
             
             logger.info("Enhancement process completed!")
             logger.info(f"Summary: {summary}")
-            
+
+            # Persist analytics to Firestore
+            stats_ref = self.db.collection('wardrobe_stats').document('global')
+            stats_ref.set(summary, merge=True)
+
             print("\n" + "="*50)
             print("WARDROBE ENHANCEMENT COMPLETED")
             print("="*50)

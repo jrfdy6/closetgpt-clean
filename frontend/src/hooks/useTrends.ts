@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useFirebase } from "@/lib/firebase-context";
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
+import { fetchTrendingStyles, getTrendsWithAnalytics } from '@/lib/utils/trendManager';
 
 export interface Trend {
   id: string;
@@ -14,12 +15,12 @@ export interface Trend {
   keyItems: string[];
   createdAt: Date;
   updatedAt: Date;
-  gender: string;
+  gender: "Men" | "Women" | "Unisex";
   priceRange: string;
-  sustainability: string;
-  culturalInfluence: string;
-  colorPalette: string[];
-  fabricTypes: string[];
+  sustainability: "High" | "Medium" | "Low";
+  culturalInfluence?: string;
+  colorPalette?: string[];
+  fabricTypes?: string[];
   imageUrl: string;
 }
 
@@ -33,69 +34,65 @@ export interface TrendAnalytics {
 export function useTrends() {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useFirebase();
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchTrends = async () => {
-      if (!db) {
-        setError(new Error("Firestore is not initialized"));
-        setLoading(false);
-        return;
-      }
-
+    const loadTrends = async () => {
       try {
-        const trendsRef = collection(db, "trends");
-        const q = query(trendsRef, where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        const trendsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Trend[];
-        setTrends(trendsData);
+        setLoading(true);
+        setError(null);
+        
+        // Fetch real trends from the backend
+        const realTrends = await fetchTrendingStyles();
+        
+        // Convert to the expected format
+        const convertedTrends: Trend[] = realTrends.map(trend => ({
+          id: trend.id,
+          name: trend.name,
+          category: trend.category,
+          subCategories: trend.subCategories,
+          season: trend.season,
+          popularity: Math.round(trend.popularity * 100), // Convert from 0-1 to 0-100
+          description: trend.description,
+          keyItems: trend.keyItems,
+          createdAt: trend.createdAt,
+          updatedAt: trend.updatedAt,
+          gender: trend.gender,
+          priceRange: trend.priceRange,
+          sustainability: trend.sustainability ? "High" : "Medium",
+          culturalInfluence: trend.culturalInfluence,
+          colorPalette: trend.colorPalette,
+          fabricTypes: trend.fabricTypes,
+          imageUrl: trend.imageUrl,
+        }));
+        
+        setTrends(convertedTrends);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Failed to fetch trends"));
+        console.error('Error loading trends:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load trends');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTrends();
-  }, [user]);
+    loadTrends();
+  }, []);
 
-  const addTrend = async (trend: Omit<Trend, "id">) => {
-    if (!db) {
-      throw new Error("Firestore is not initialized");
-    }
-
-    try {
-      const trendsRef = collection(db, "trends");
-      const docRef = await addDoc(trendsRef, {
-        ...trend,
-        userId: user?.uid,
-        createdAt: new Date().toISOString()
-      });
-      return docRef.id;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error("Failed to add trend");
-    }
+  const addTrend = async (trend: Omit<Trend, 'id'>): Promise<Trend> => {
+    const newTrend: Trend = {
+      ...trend,
+      id: Date.now().toString(),
+      imageUrl: "",
+    };
+    setTrends(prev => [...prev, newTrend]);
+    return newTrend;
   };
 
   const getTrendsByCategory = async (category: string): Promise<Trend[]> => {
-    try {
-      const trendsRef = collection(db, "trends");
-      const q = query(trendsRef, where("category", "==", category));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        imageUrl: "",
-        ...doc.data()
-      })) as Trend[];
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to fetch trends by category");
-    }
+    return trends.filter(trend => 
+      trend.category.toLowerCase().includes(category.toLowerCase())
+    );
   };
 
   const getTrendAnalytics = async (trendId: string): Promise<TrendAnalytics> => {

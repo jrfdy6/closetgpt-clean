@@ -2,14 +2,16 @@
 
 import React from 'react';
 import { useTheme } from 'next-themes';
-import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { Moon, Sun } from 'lucide-react';
 
 const ThemeToggle: React.FC = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
-    console.log('ThemeToggle mounted, current theme:', theme);
-  }, [theme]);
+    setMounted(true);
+    console.log('ThemeToggle mounted, current theme:', theme, 'resolvedTheme:', resolvedTheme);
+  }, [theme, resolvedTheme]);
 
   const handleThemeChange = () => {
     try {
@@ -21,17 +23,31 @@ const ThemeToggle: React.FC = () => {
     }
   };
 
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <button
+        className="p-2 rounded-md bg-gray-100 dark:bg-gray-800 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+        aria-label="Loading theme toggle"
+      >
+        <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse" />
+      </button>
+    );
+  }
+
+  const isDark = resolvedTheme === 'dark';
+
   return (
     <button
       data-testid="theme-toggle"
       onClick={handleThemeChange}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}
     >
-      {theme === 'dark' ? (
-        <SunIcon className="w-5 h-5" />
+      {isDark ? (
+        <Sun className="w-4 h-4 text-gray-600 dark:text-gray-300" />
       ) : (
-        <MoonIcon className="w-5 h-5" />
+        <Moon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
       )}
     </button>
   );

@@ -9,11 +9,21 @@ export async function GET(
   try {
     const { id } = await context.params;
     
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization');
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    // Forward the authorization header if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+    
     // Forward the request to the backend
     const response = await fetch(`${API_URL}/api/outfit/${id}`, {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
     if (!response.ok) {

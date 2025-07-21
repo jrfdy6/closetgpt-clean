@@ -14,7 +14,7 @@ export const OCCASIONS = {
   CASUAL: 'casual',
   FORMAL: 'formal',
   BUSINESS: 'business',
-  SPORTS: 'sports',
+  ATHLETIC: 'athletic',
   PARTY: 'party',
   BEACH: 'beach',
 } as const;

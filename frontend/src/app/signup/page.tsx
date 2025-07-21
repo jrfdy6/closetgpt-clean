@@ -19,7 +19,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, loading } = useFirebase();
-  const resetOnboarding = useOnboardingStore(state => state.reset);
+  const resetOnboarding = useOnboardingStore(state => state.resetOnboarding);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
