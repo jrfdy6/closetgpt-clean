@@ -69,6 +69,8 @@ ENV/
 env.bak/
 venv.bak/
 .venv311/
+backend/.venv311/
+backend/venv311/
 
 # IDE
 .vscode/
