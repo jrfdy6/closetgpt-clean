@@ -67,4 +67,4 @@ USER appuser
 EXPOSE 3001
 
 # Run the application
-CMD ["sh", "-c", "python -m uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-3001} --workers 1"] 
+CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "3001", "--workers", "1"] 
