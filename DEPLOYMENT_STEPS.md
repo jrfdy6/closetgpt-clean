@@ -11,7 +11,7 @@
 5. **Configure deployment:**
    - **Root Directory:** `backend`
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn src.app:app --host 0.0.0.0 --port $PORT`
+   - **Start Command:** `uvicorn src.app:app --host 0.0.0.0 --port 3001`
 
 6. **Set Environment Variables in Railway Dashboard:**
    ```
@@ -37,7 +37,7 @@
    - **Root Directory:** `backend`
    - **Environment:** `Python 3`
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn src.app:app --host 0.0.0.0 --port $PORT`
+   - **Start Command:** `uvicorn src.app:app --host 0.0.0.0 --port 3001`
 
 6. **Set Environment Variables in Render Dashboard**
 
