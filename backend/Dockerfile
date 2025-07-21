@@ -54,6 +54,9 @@ COPY firebase/ ./firebase/
 COPY firebase.json .
 COPY cors.json .
 
+# Change to src directory for running the app
+WORKDIR /app/src
+
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data
 
@@ -67,4 +70,4 @@ USER appuser
 EXPOSE 3001
 
 # Run the application
-CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "3001", "--workers", "1"] 
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3001"] 
