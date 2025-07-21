@@ -75,4 +75,4 @@ EXPOSE 8000
 #     CMD curl -f http://localhost:3001/health || exit 1
 
 # Run the application
-CMD sh -c "python -m uvicorn src.app:app --host 0.0.0.0 --port \${PORT:-8000} --workers 1" 
+CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"] 
