@@ -53,7 +53,6 @@ COPY src/ ./src/
 COPY firebase/ ./firebase/
 COPY firebase.json .
 COPY cors.json .
-COPY start.sh .
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data
@@ -61,18 +60,11 @@ RUN mkdir -p /app/logs /app/data
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app
 
-# Make startup script executable
-RUN chmod +x start.sh
-
 # Switch to non-root user
 USER appuser
 
-# Expose port (Railway will set the actual port)
+# Expose port
 EXPOSE 3001
-
-# Health check - disabled for now
-# HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-#     CMD curl -f http://localhost:3001/health || exit 1
 
 # Run the application
 CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "3001", "--workers", "1"] 
