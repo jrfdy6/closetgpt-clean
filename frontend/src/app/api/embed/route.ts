@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     backendFormData.append('image', image);
     backendFormData.append('item_id', itemId);
 
-    const response = await fetch('http://localhost:3001/api/embed', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://closetgpt-clean-production.up.railway.app'}/api/embed`, {
       method: 'POST',
       body: backendFormData,
     });

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // Forward the request to the backend server
-    const response = await fetch('http://localhost:3001/api/analyze-image', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://closetgpt-clean-production.up.railway.app'}/api/analyze-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
