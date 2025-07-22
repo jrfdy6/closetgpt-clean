@@ -115,4 +115,5 @@ async def get_weather(request: WeatherRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=3001) 
+    port = int(os.getenv("PORT", 8080))  # Use Railway's PORT or fallback to 8080 locally
+    uvicorn.run(app, host="0.0.0.0", port=port) 
