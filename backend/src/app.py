@@ -3,16 +3,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes import weather, wardrobe, auth, analytics, monitoring, image_processing, image_analysis, outfits, outfit, style_analysis, wardrobe_analysis, security, performance, analytics_dashboard, feedback, public_diagnostics, validation_rules, item_analytics, outfit_history, forgotten_gems
 from .core.logging import setup_logging
 from .core.middleware import setup_middleware
-from .config import firebase  # Import Firebase config to initialize it
+
+# Import Firebase config to initialize it
+try:
+    from .config import firebase
+    print("DEBUG: Firebase config imported successfully")
+except Exception as e:
+    print(f"DEBUG: Firebase config import failed: {e}")
 
 # Initialize logging
-setup_logging()
+try:
+    setup_logging()
+    print("DEBUG: Logging setup completed")
+except Exception as e:
+    print(f"DEBUG: Logging setup failed: {e}")
 
 app = FastAPI(
     title="ClosetGPT API",
     description="AI-powered wardrobe management and outfit generation API",
     version="1.0.0"
 )
+print("DEBUG: FastAPI app created")
 
 # Setup production middleware
 print("DEBUG: About to call setup_middleware(app)")
@@ -69,12 +80,19 @@ app.include_router(outfit_history.router, prefix="/api", tags=["outfit-history"]
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Railway deployment"""
-    return {
-        "status": "healthy",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "environment": os.getenv("ENVIRONMENT", "development"),
-        "version": "1.0.0"
-    }
+    try:
+        return {
+            "status": "healthy",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": "2024-01-01T00:00:00Z"
+        }
 
 @app.get("/")
 async def root():
