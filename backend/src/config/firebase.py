@@ -1,34 +1,20 @@
+import os
 import firebase_admin
 from firebase_admin import credentials, firestore
-import os
-from pathlib import Path
 
-# Get the absolute path to the backend directory
-BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+firebase_creds = {
+    "type": "service_account",
+    "project_id": os.environ["FIREBASE_PROJECT_ID"],
+    "private_key_id": os.environ.get("FIREBASE_PRIVATE_KEY_ID") or os.environ["private_key_id"],
+    "private_key": os.environ["FIREBASE_PRIVATE_KEY"].replace("\\n", "\n"),
+    "client_email": os.environ["FIREBASE_CLIENT_EMAIL"],
+    "client_id": os.environ["FIREBASE_CLIENT_ID"],
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": os.environ["FIREBASE_CLIENT_X509_CERT_URL"],
+}
 
-# Check for environment variable first, then fall back to hardcoded path
-CREDENTIALS_PATH = os.getenv('GOOGLE_APPLICATION_CREDENTIALS') or str(BACKEND_DIR / 'service-account-key.json')
-
-# Initialize Firebase Admin
-if not firebase_admin._apps:
-    try:
-        if os.path.exists(CREDENTIALS_PATH):
-            cred = credentials.Certificate(CREDENTIALS_PATH)
-            firebase_admin.initialize_app(cred)
-            print(f"✅ Firebase initialized with credentials from: {CREDENTIALS_PATH}")
-        else:
-            # For development, you can use application default credentials
-            firebase_admin.initialize_app() 
-            print("⚠️  Firebase initialized with application default credentials")
-    except Exception as e:
-        print(f"❌ Error initializing Firebase with service account: {e}")
-        print("🔄 Trying with application default credentials...")
-        try:
-            firebase_admin.initialize_app()
-            print("✅ Firebase initialized with application default credentials")
-        except Exception as e2:
-            print(f"❌ Failed to initialize Firebase: {e2}")
-            raise e2
-
-# Initialize Firestore
+cred = credentials.Certificate(firebase_creds)
+firebase_admin.initialize_app(cred)
 db = firestore.client() 
