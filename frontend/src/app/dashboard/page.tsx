@@ -34,8 +34,8 @@ import {
   LazyWardrobeGapAnalysis,
   LazyForgottenGems,
   LazyTodaysOutfitRecommendation
-} from '@/lib/utils/dynamic-imports';
-import { useWardrobeStats } from '@/lib/hooks/useWardrobeStats';
+} from '../../lib/utils/dynamic-imports';
+import { useWardrobeStats } from '../../lib/hooks/useWardrobeStats';
 import { PageLoadingSkeleton } from '@/components/ui/loading-states';
 
 export default function DashboardPage() {

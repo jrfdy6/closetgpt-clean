@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, RefreshCw, Star, ThumbsUp, ThumbsDown, AlertTriangle, Calendar, Eye, Edit3, X, Plus, Save, RotateCcw, CheckCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { authenticatedFetch } from '@/lib/utils/auth';
+import { authenticatedFetch } from '../../../lib/utils/auth';
 import { OutfitFeedback } from '@/components/OutfitFeedback';
 import { OutfitWarnings } from '@/components/ui/OutfitWarnings';
 import { useFirebase } from '@/lib/firebase-context';
