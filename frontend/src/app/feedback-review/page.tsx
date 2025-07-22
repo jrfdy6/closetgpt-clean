@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/lib/firebase-context';
-import { feedbackApi } from '../../lib/api/feedbackApi';
+import { feedbackApi } from '@/lib/api/feedbackApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
