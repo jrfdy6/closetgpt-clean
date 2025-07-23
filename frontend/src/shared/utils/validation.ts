@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { ClothingItem, ClothingItemSchema, OpenAIClothingAnalysis, OpenAIClothingAnalysisSchema, ClothingTypeEnum, BasicMetadata, ColorAnalysis } from '@shared/types';
-import { OutfitSchema, UserProfileSchema, type Outfit, type UserProfile, type AppError } from "../types";
-import { SuccessResponse, ErrorResponse } from '@shared/types/responses';
+import { ClothingItem, ClothingItemSchema, OpenAIClothingAnalysis, OpenAIClothingAnalysisSchema, ClothingTypeEnum, BasicMetadata, ColorAnalysis, OutfitSchema, UserProfileSchema, type Outfit, type UserProfile, type AppError, SuccessResponse, ErrorResponse } from '@shared/types';
 import unidecode from 'unidecode';
 
 // Maximum lengths for strings
