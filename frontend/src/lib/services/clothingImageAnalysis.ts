@@ -4,7 +4,8 @@ export async function analyzeClothingImage(imageUrl: string): Promise<OpenAIClot
   try {
     console.log("Sending image for enhanced analysis:", imageUrl);
     
-    const response = await fetch('http://localhost:3001/api/analyze-image', {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://closetgpt-clean-production.up.railway.app';
+    const response = await fetch(`${backendUrl}/api/analyze-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

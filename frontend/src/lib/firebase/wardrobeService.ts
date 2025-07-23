@@ -32,11 +32,9 @@ import {
   convertOpenAIAnalysisToClothingItem,
   createSuccessResponse,
   createErrorResponse,
-  isValidationError,
-  formatValidationError,
   validateClothingItem,
   validateClothingItems
-} from '@shared/utils/validation';
+} from '@/lib/utils/validation';
 import { uploadMultipleImages, deleteMultipleImages, UploadedImage, uploadImage } from "./storageService";
 import { createHash } from 'crypto';
 import { z } from 'zod';
