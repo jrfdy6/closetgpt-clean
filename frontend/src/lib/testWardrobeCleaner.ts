@@ -1,5 +1,5 @@
 import { cleanAndStoreWardrobeItem, processAllWardrobeItems, compareItems, analyzeDataQuality } from './wardrobeCleaner';
-import { ClothingItem } from '../../../shared/types/wardrobe';
+import { ClothingItem } from '@/types/wardrobe';
 import { Garment, GarmentStyle, GarmentMaterial, GarmentPattern, GarmentFit } from '@/types/photo-analysis';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { processCurrentUserWardrobe } from '../lib/testWardrobeCleaner';
 import { useFirebase } from '../lib/firebase-context';
