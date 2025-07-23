@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { processAndAddImages } from '@/lib/firebase/wardrobeService';
 import { uploadImage } from '@/lib/firebase/storageService';
 import { analyzeClothingImage } from '@/lib/services/clothingImageAnalysis';
-import { convertOpenAIAnalysisToClothingItem } from '@shared/utils/validation';
+import { convertOpenAIAnalysisToClothingItem } from '@/lib/utils/validation';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { v4 as uuidv4 } from 'uuid';
