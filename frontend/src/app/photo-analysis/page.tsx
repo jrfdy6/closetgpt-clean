@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { PhotoUpload } from '@/components/PhotoAnalysis/PhotoUpload';
 import { PhotoAnalysisResults } from '@/components/PhotoAnalysis/PhotoAnalysisResults';
