@@ -1,6 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
 import * as bodyPix from '@tensorflow-models/body-pix';
-import ColorThief from 'colorthief';
 import { 
   PhotoAnalysis, 
   BodyMeasurements, 
@@ -113,31 +112,38 @@ const determineBodyType = (
 
 // Extract colors from image
 const extractColors = async (imageData: ImageData): Promise<ColorAnalysis> => {
-  const colorThief = new ColorThief();
-  const canvas = document.createElement('canvas');
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
-  const ctx = canvas.getContext('2d');
-  ctx?.putImageData(imageData, 0, 0);
-
-  // Get dominant colors
-  const palette = colorThief.getPalette(canvas, 5);
-  const primaryColors = palette.slice(0, 2).map((color: [number, number, number]) => 
-    `#${color.map((c: number) => c.toString(16).padStart(2, '0')).join('')}`
-  );
-  const secondaryColors = palette.slice(2).map((color: [number, number, number]) => 
-    `#${color.map((c: number) => c.toString(16).padStart(2, '0')).join('')}`
-  );
+  // Simple color extraction without ColorThief
+  const data = imageData.data;
+  const colors: { [key: string]: number } = {};
+  
+  // Sample colors from the image
+  for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    colors[hex] = (colors[hex] || 0) + 1;
+  }
+  
+  // Get most common colors
+  const sortedColors = Object.entries(colors)
+    .sort(([,a], [,b]) => b - a)
+    .map(([color]) => color);
+  
+  const primaryColors = sortedColors.slice(0, 2);
+  const secondaryColors = sortedColors.slice(2, 5);
 
   // Get skin tone (simplified)
   const skinTone = {
     undertone: 'neutral' as const,
-    shade: primaryColors[0],
+    shade: primaryColors[0] || '#000000',
   };
 
   return {
     primaryColors,
     secondaryColors,
+    dominantColors: primaryColors,
+    matchingColors: secondaryColors,
     skinTone,
   };
 };
@@ -1610,10 +1616,23 @@ const extractRegionColor = async (imageData: ImageData, region: { x: number; y: 
   const regionData = ctx.getImageData(region.x, region.y, region.width, region.height);
   ctx.putImageData(regionData, 0, 0);
 
-  // Get dominant color
-  const colorThief = new ColorThief();
-  const [r, g, b] = colorThief.getColor(canvas);
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  // Get dominant color (simple average)
+  const imageData = ctx.getImageData(0, 0, region.width, region.height);
+  const data = imageData.data;
+  let r = 0, g = 0, b = 0, count = 0;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+    count++;
+  }
+  
+  const avgR = Math.round(r / count);
+  const avgG = Math.round(g / count);
+  const avgB = Math.round(b / count);
+  
+  return `#${avgR.toString(16).padStart(2, '0')}${avgG.toString(16).padStart(2, '0')}${avgB.toString(16).padStart(2, '0')}`;
 };
 
 // Helper function to determine formality
