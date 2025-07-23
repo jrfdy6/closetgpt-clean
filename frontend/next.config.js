@@ -17,7 +17,7 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': require('path').resolve(__dirname, 'src'),
-      '@shared': require('path').resolve(__dirname, 'node_modules/@closetgpt/shared'),
+      '@shared': require('path').resolve(__dirname, 'src/shared'),
     };
 
     return config;

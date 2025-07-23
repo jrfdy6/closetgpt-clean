@@ -1617,8 +1617,8 @@ const extractRegionColor = async (imageData: ImageData, region: { x: number; y: 
   ctx.putImageData(regionData, 0, 0);
 
   // Get dominant color (simple average)
-  const imageData = ctx.getImageData(0, 0, region.width, region.height);
-  const data = imageData.data;
+  const regionImageData = ctx.getImageData(0, 0, region.width, region.height);
+  const data = regionImageData.data;
   let r = 0, g = 0, b = 0, count = 0;
   
   for (let i = 0; i < data.length; i += 4) {
