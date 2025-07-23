@@ -12,6 +12,14 @@ const analysisCache = new Map<string, PhotoAnalysis>();
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if Firebase Admin is initialized
+    if (!adminDb) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Firebase Admin not initialized' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { userId } = getAuth(req);
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
