@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useOnboardingStore, ShoppingPriority } from '@/lib/store/onboardingStore';
 import { Button } from '@/components/ui/button';

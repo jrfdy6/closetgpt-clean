@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useOnboardingStore, type StylePreference } from '@/lib/store/onboardingStore';
 import { Card } from '@/components/ui/card';
