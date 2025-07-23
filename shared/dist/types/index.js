@@ -33,12 +33,6 @@ Object.defineProperty(exports, "MetadataSchema", { enumerable: true, get: functi
 Object.defineProperty(exports, "SeasonEnum", { enumerable: true, get: function () { return wardrobe_1.SeasonEnum; } });
 Object.defineProperty(exports, "StyleTagEnum", { enumerable: true, get: function () { return wardrobe_1.StyleTagEnum; } });
 Object.defineProperty(exports, "ClothingTypeEnum", { enumerable: true, get: function () { return wardrobe_1.ClothingTypeEnum; } });
-// Export user types
-var user_1 = require("./user");
-Object.defineProperty(exports, "UserProfileSchema", { enumerable: true, get: function () { return user_1.UserProfileSchema; } });
-// Export outfit types
-var outfit_1 = require("./outfit");
-Object.defineProperty(exports, "OutfitSchema", { enumerable: true, get: function () { return outfit_1.OutfitSchema; } });
 var ClothingCategory;
 (function (ClothingCategory) {
     ClothingCategory["TOPS"] = "tops";

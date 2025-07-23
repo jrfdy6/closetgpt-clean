@@ -29,29 +29,13 @@ export type {
   ItemMetadata,
   BasicMetadata,
   ColorAnalysis,
-  Metadata,
-  Season,
-  StyleTag,
-  ClothingType
+  Metadata
 } from './wardrobe';
 
 // Export user types
-export {
-  UserProfileSchema
-} from './user';
-
 export type {
   UserProfile
 } from './user';
-
-// Export outfit types
-export {
-  OutfitSchema
-} from './outfit';
-
-export type {
-  Outfit
-} from './outfit';
 
 // Re-export common types
 export type { 
