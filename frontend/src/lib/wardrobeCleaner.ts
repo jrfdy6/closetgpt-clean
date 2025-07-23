@@ -1,7 +1,7 @@
-import { ClothingItem, Color, VisualAttributes, Metadata, BasicMetadata } from '@shared/types';
+import { ClothingItem, Color, VisualAttributes, Metadata, BasicMetadata } from '@/types/wardrobe';
 import { db } from './firebase/config';
 import { collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
-import { validateClothingItem } from '@shared/utils/validation';
+import { validateClothingItem } from '@/lib/utils/validation';
 import { Garment, GarmentStyle, GarmentPattern, GarmentFit, GarmentMaterial } from '@/types/photo-analysis';
 
 interface ItemComparison {
